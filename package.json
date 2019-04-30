@@ -1,0 +1,121 @@
+{
+  "name": "@natlibfi/identifier-services-tasks",
+  "description": "Tasks microservice of Identifier Services ",
+  "author": {
+    "name": "The National Library of Finland"
+  },
+  "keywords": [],
+  "homepage": "https://github.com/natlibfi/identifier-services-tasks",
+  "bugs": {
+    "url": "https://github.com/natlibfi/identifier-services-tasks/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:natlibfi/identifier-services-tasks.git"
+  },
+  "license": "AGPL-3.0+",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "engines": {
+    "node": ">=8"
+  },
+  "scripts": {
+    "start": "node ./dist/index",
+    "check-deps": "npm-check;exit 0",
+    "lint:base": "eslint --fix",
+    "lint": "npm run lint:base -- src",
+    "test:base": "cross-env NODE_ENV=test nyc mocha -t 20000 --exit --require @babel/register",
+    "test": "npm run lint && npm run test:base -- src/**/*.spec.js && npm run coverage",
+    "coverage": "nyc check-coverage --per-file",
+    "build": "babel src --source-maps --copy-files --delete-dir-on-start --out-dir=dist --minified",
+    "build:dev": "npm run build:transpile && npm run check-deps",
+    "watch:test": "cross-env DEBUG=1 NODE_ENV=test nodemon -w src --exec 'npm test'",
+    "watch:dev": "cross-env DEBUG=1 nodemon -w src --exec 'babel-node src/index.js'"
+  },
+  "dependencies": {
+    "@babel/core": "^7.2.0",
+    "@natlibfi/melinda-commons": "^5.0.0",
+    "@natlibfi/identifier-services-commons": "git+https://github.com/NatLibFi/identifier-services-commons.git#dev"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.2.0",
+    "@babel/core": "^7.4.0",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.2.0",
+    "@babel/register": "^7.0.0",
+    "@natlibfi/fixura": "^1.0.0",
+    "@natlibfi/fixura-mongo": "^1.0.0",
+    "babel-eslint": "^10.0.1",
+    "babel-plugin-rewire": "^1.2.0",
+    "babel-plugin-istanbul": "^5.1.0",
+    "cross-env": "^5.2.0",
+    "eslint": "^5.9.0",
+    "eslint-config-xo": ">=0.25.0 <1.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "istanbul": ">=0.4.5 <1.0.0",
+    "mocha": "^6.0.2",
+    "nock": "^10.0.3",
+    "nodemon": "^1.18.10",
+    "npm-check": "^5.9.0",
+    "nyc": "^13.1.0"
+  },
+  "eslintConfig": {
+    "parser": "babel-eslint",
+    "plugins": [
+      "import"
+    ],
+    "extends": [
+      "xo",
+      "plugin:import/errors"
+    ],
+    "rules": {
+      "prefer-arrow-callback": [
+        "error"
+      ]
+    },
+    "env": {
+      "mocha": true
+    }
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/preset-env",
+        {
+          "targets": {
+            "node": "8"
+          }
+        }
+      ]
+    ],
+    "env": {
+      "test": {
+        "plugins": [
+          "istanbul",
+          "rewire"
+        ]
+      }
+    }
+  },
+  "nyc": {
+    "include": [
+      "src/interfaces/*.js"
+    ],
+    "exclude": [
+      "**/*.spec.js"
+    ],
+    "reporter": [
+      "lcov",
+      "html"
+    ],
+    "require": [
+      "@babel/register"
+    ],
+    "sourceMap": false,
+    "instrument": false,
+    "lines": 80,
+    "statements": 80,
+    "functions": 80,
+    "branches": 80
+  }
+}
