@@ -34,8 +34,11 @@
   },
   "dependencies": {
     "@babel/core": "^7.2.0",
+    "@natlibfi/identifier-services-commons": "git+https://github.com/natlibfi/identifier-services-commons.git#feature/apiError",
     "@natlibfi/melinda-commons": "^5.0.0",
-    "@natlibfi/identifier-services-commons": "git+https://github.com/NatLibFi/identifier-services-commons.git#dev"
+    "url-parse": "^1.4.7",
+    "nodemailer": "^6.2.1",
+    "agenda": "^2.0.2"
   },
   "devDependencies": {
     "@babel/cli": "^7.2.0",
