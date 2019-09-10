@@ -44,13 +44,8 @@ export const API_PASSWORD = readEnvironmentVariable('API_PASSWORD');
 export const API_EMAIL = readEnvironmentVariable('API_EMAIL');
 
 export const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
-export const JOB_FREQ_REQUEST_STATE_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_IN_PROGRESS', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_ACCEPTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_ACCEPTED', {defaultValue: '10 seconds'});
-
-export const JOB_FREQ_BACKGROUND_PROCESSING_PENDING = readEnvironmentVariable('JOB_FREQ_BACKGROUND_PROCESSING_PENDING', {defaultValue: '10 seconds'});
-export const JOB_FREQ_BACKGROUND_PROCESSING_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_BACKGROUND_PROCESSING_IN_PROGRESS', {defaultValue: '10 seconds'});
-export const JOB_FREQ_BACKGROUND_PROCESSING_PROCESSED = readEnvironmentVariable('JOB_FREQ_BACKGROUND_PROCESSING_PROCESSED', {defaultValue: '10 seconds'});
 
 export const JOB_REQUEST_STATE_NEW = 'new';
 export const JOB_REQUEST_STATE_IN_PROGRESS = 'inProgress';

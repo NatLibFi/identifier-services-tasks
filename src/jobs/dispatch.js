@@ -166,7 +166,6 @@ export default function (agenda) {
 			metadataDelivery: 'manual'
 		};
 		const response = await client.publisherCreation({request: formatRequest});
-		console.log(response);
 		const newRequest = {...request, createdResource: response};
 		client.updatePublisherRequest({id: request.id, payload: newRequest});
 	}
