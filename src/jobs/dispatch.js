@@ -27,12 +27,14 @@
 */
 
 import {Utils} from '@natlibfi/melinda-commons';
-import {createApiClient} from '@natlibfi/identifier-services-commons';
+import {createApiClient} from '../api-client';
 import parse from 'url-parse';
 import nodemailer from 'nodemailer';
 import {
 	API_URL,
 	JOB_REQUEST_STATE_NEW,
+	JOB_REQUEST_STATE_ACCEPTED,
+	JOB_REQUEST_STATE_REJECTED,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
@@ -50,9 +52,11 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_STATE_NEW, {concurrency: 1}, requestNew);
+	agenda.define(JOB_REQUEST_STATE_NEW, {concurrency: 1}, request);
+	agenda.define(JOB_REQUEST_STATE_ACCEPTED, {concurrency: 1}, request);
+	agenda.define(JOB_REQUEST_STATE_REJECTED, {concurrency: 1}, request);
 
-	async function requestNew(_, done) {
+	async function request(job, done) {
 		try {
 			await getRequests();
 		} finally {
@@ -62,25 +66,44 @@ export default function (agenda) {
 		async function getRequests() {
 			await processRequest({
 				client, processCallback,
-				query: {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null},
+				query: {queries: [{query: {state: job.attrs.name, backgroundProcessingState: 'pending'}}], offset: null},
 				messageCallback: count => `${count} requests are pending`
 			});
 		}
+	}
 
-		async function processCallback(requests) {
-			// Set backgroundProcessingState to inProgress
-			//
-			await Promise.all(requests.map(async request => {
-				let payload = {...request, backgroundProcessingState: 'inProgress'};
-				client.updatePublisherRequest({id: request.id, payload: payload});
-				logger.log('info', `Background processing State changed to "inProgress" for ${request.id}`);
+	async function processCallback(requests) {
+		await Promise.all(requests.map(async request => {
+			setBackground(request, 'inProgress');
+			switch (request.state) {
+				case 'new':
+					return (
+						await sendEmail('Request Status Notification', 'Current status of your request:  "in Progress"'),
+						setBackground(request, 'processed')
+					);
 
-				await sendEmail('Request Status Notification', 'Current status of your request:  "in Progress"');
+				case 'rejected':
+					return (
+						// Await sendEmail(`Request Status Notification', 'Current status:  "Rejected", Rejected reason: ${request.rejectionReason}`),
+						setBackground(request, 'processed')
+					);
 
-				payload = {...request, backgroundProcessingState: 'processed'};
-				client.updatePublisherRequest({id: request.id, payload: payload});
-				logger.log('info', `Background processing State changed to "prcessed" for${request.id}`);
-			}));
+				case 'accepted':
+					return (
+						await createResource(request),
+						// Await sendEmail('Request Status Notification', 'Current status of your request:  "Accepted"'),
+						setBackground(request, 'processed')
+					);
+
+				default:
+					return null;
+			}
+		}));
+
+		function setBackground(request, state) {
+			const payload = {...request, backgroundProcessingState: state};
+			client.updatePublisherRequest({id: request.id, payload: payload});
+			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 		}
 	}
 
@@ -129,5 +152,22 @@ export default function (agenda) {
 
 			console.log(info.response);
 		});
+	}
+
+	async function createResource(request) {
+		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, ...rest} = {...request};
+		const formatRequest = {
+			...rest,
+			primaryContact: request.primaryContact.map(item => item.email),
+			activity: {
+				active: true,
+				yearInactivated: 0
+			},
+			metadataDelivery: 'manual'
+		};
+		const response = await client.publisherCreation({request: formatRequest});
+		console.log(response);
+		const newRequest = {...request, createdResource: response};
+		client.updatePublisherRequest({id: request.id, payload: newRequest});
 	}
 }
