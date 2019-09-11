@@ -202,5 +202,4 @@ export default function (agenda) {
 		const newRequest = {...request, createdResource: response};
 		return newRequest;
 	}
-
 }
