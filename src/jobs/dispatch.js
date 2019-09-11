@@ -52,11 +52,11 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_STATE_NEW, {concurrency: 1}, request);
-	agenda.define(JOB_REQUEST_STATE_ACCEPTED, {concurrency: 1}, request);
-	agenda.define(JOB_REQUEST_STATE_REJECTED, {concurrency: 1}, request);
+	agenda.define(JOB_REQUEST_STATE_NEW, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
+	agenda.define(JOB_REQUEST_STATE_ACCEPTED, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
+	agenda.define(JOB_REQUEST_STATE_REJECTED, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
 
-	async function request(job, done) {
+	async function request(job, done, type) {
 		try {
 			await getRequests();
 		} finally {
@@ -67,32 +67,32 @@ export default function (agenda) {
 			await processRequest({
 				client, processCallback,
 				query: {queries: [{query: {state: job.attrs.name, backgroundProcessingState: 'pending'}}], offset: null},
-				messageCallback: count => `${count} requests are pending`
+				messageCallback: count => `${count} requests are pending`, type: type
 			});
 		}
 	}
 
-	async function processCallback(requests) {
+	async function processCallback(requests, type) {
 		await Promise.all(requests.map(async request => {
-			setBackground(request, 'inProgress');
+			setBackground(request, type, 'inProgress');
 			switch (request.state) {
 				case 'new':
 					return (
 						await sendEmail('Request Status Notification', 'Current status of your request:  "in Progress"'),
-						setBackground(request, 'processed')
+						setBackground(request, type, 'processed')
 					);
 
 				case 'rejected':
 					return (
 						// Await sendEmail(`Request Status Notification', 'Current status:  "Rejected", Rejected reason: ${request.rejectionReason}`),
-						setBackground(request, 'processed')
+						setBackground(request, type, 'processed')
 					);
 
 				case 'accepted':
 					return (
-						await createResource(request),
+						await createResource(request, type),
 						// Await sendEmail('Request Status Notification', 'Current status of your request:  "Accepted"'),
-						setBackground(request, 'processed')
+						setBackground(request, type, 'processed')
 					);
 
 				default:
@@ -100,17 +100,36 @@ export default function (agenda) {
 			}
 		}));
 
-		function setBackground(request, state) {
+		function setBackground(request, type, state) {
 			const payload = {...request, backgroundProcessingState: state};
-			client.updatePublisherRequest({id: request.id, payload: payload});
+			switch (type) {
+				case 'publisher':
+					client.updatePublisherRequest({id: request.id, payload: payload});
+					break;
+				default:
+					break;
+			}
+
 			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, filter = () => true}) {
+	async function processRequest({client, processCallback, messageCallback, query, type, filter = () => true}) {
 		try {
-			const response = await client.fetchPublishersRequestsList(query);
-			const res = await response.json();
+			let response;
+			let res;
+
+			switch (type) {
+				case 'publisher':
+					response = await client.fetchPublishersRequestsList(query);
+					res = await response.json();
+					break;
+				case 'publication':
+					console.log('Not availabe yet');
+					break;
+				default:
+					break;
+			}
 
 			let requestsTotal = 0;
 			const pendingProcessors = [];
@@ -118,7 +137,7 @@ export default function (agenda) {
 			if (res.results) {
 				const filteredRequests = res.results.filter(filter);
 				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests));
+				pendingProcessors.push(processCallback(filteredRequests, type));
 			}
 
 			if (messageCallback) {
@@ -154,7 +173,17 @@ export default function (agenda) {
 		});
 	}
 
-	async function createResource(request) {
+	async function createResource(request, type) {
+		switch (type) {
+			case 'publisher':
+				client.updatePublisherRequest({id: request.id, payload: createPublisherRequest(formatPublisherRequest(request))});
+				break;
+			default:
+				break;
+		}
+	}
+
+	function formatPublisherRequest(request) {
 		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, ...rest} = {...request};
 		const formatRequest = {
 			...rest,
@@ -165,8 +194,13 @@ export default function (agenda) {
 			},
 			metadataDelivery: 'manual'
 		};
-		const response = await client.publisherCreation({request: formatRequest});
-		const newRequest = {...request, createdResource: response};
-		client.updatePublisherRequest({id: request.id, payload: newRequest});
+		return formatRequest;
 	}
+
+	async function createPublisherRequest(request) {
+		const response = await client.publisherCreation({request: request});
+		const newRequest = {...request, createdResource: response};
+		return newRequest;
+	}
+
 }
