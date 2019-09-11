@@ -28,7 +28,7 @@
 
 import {Utils} from '@natlibfi/melinda-commons';
 import {createApiClient} from '../api-client';
-import parse from 'url-parse';
+import url from 'url';
 import nodemailer from 'nodemailer';
 import {
 	API_URL,
@@ -151,7 +151,7 @@ export default function (agenda) {
 	}
 
 	async function sendEmail(subject, message) {
-		const parseUrl = parse(SMTP_URL, true);
+		const parseUrl = url.parse(SMTP_URL);
 		let transporter = nodemailer.createTransport({
 			host: parseUrl.hostname,
 			port: parseUrl.port,
