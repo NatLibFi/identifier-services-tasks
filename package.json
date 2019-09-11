@@ -22,14 +22,15 @@
   "scripts": {
     "start": "node ./dist/index",
     "check-deps": "npm-check;exit 0",
-    "lint:base": "eslint --fix",
-    "lint": "npm run lint:base -- src",
+    "lint:dev": "eslint --fix src",
+    "lint": "eslint src",
+    "test:base": "cross-env NODE_ENV=test nyc mocha -t 20000 --exit --require @babel/register",
     "test": "npm run lint",
-    "test:base": "npm run lint:base",
+    "test:dev": "npm run lint:dev",
     "coverage": "nyc check-coverage --per-file",
     "build": "babel src --source-maps --copy-files --delete-dir-on-start --out-dir=dist --minified",
     "build:dev": "npm run build:transpile && npm run check-deps",
-    "watch:test": "cross-env DEBUG=1 NODE_ENV=test nodemon -w src --exec 'npm test'",
+    "watch:test": "cross-env DEBUG=1 NODE_ENV=test nodemon -w src --exec 'npm run test:dev'",
     "watch:dev": "cross-env DEBUG=1 nodemon -w src --exec 'babel-node src/index.js'"
   },
   "dependencies": {
