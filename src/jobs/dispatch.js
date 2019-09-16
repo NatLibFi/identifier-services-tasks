@@ -28,8 +28,9 @@
 
 import {Utils} from '@natlibfi/melinda-commons';
 import {createApiClient} from '../api-client';
-import url from 'url';
+import {URL} from 'url';
 import nodemailer from 'nodemailer';
+import stringTemplate from 'string-template-js';
 import {
 	API_URL,
 	JOB_REQUEST_STATE_NEW,
@@ -78,20 +79,20 @@ export default function (agenda) {
 			switch (request.state) {
 				case 'new':
 					return (
-						await sendEmail('Request Status Notification', 'Current status of your request:  "in Progress"'),
+						await sendEmail('publisher request new'),
 						setBackground(request, type, 'processed')
 					);
 
 				case 'rejected':
 					return (
-						// Await sendEmail(`Request Status Notification', 'Current status:  "Rejected", Rejected reason: ${request.rejectionReason}`),
+						await sendEmail('publisher request rejected', request),
 						setBackground(request, type, 'processed')
 					);
 
 				case 'accepted':
 					return (
 						await createResource(request, type),
-						// Await sendEmail('Request Status Notification', 'Current status of your request:  "Accepted"'),
+						await sendEmail('publisher request accepted'),
 						setBackground(request, type, 'processed')
 					);
 
@@ -101,7 +102,7 @@ export default function (agenda) {
 		}));
 
 		function setBackground(request, type, state) {
-			const payload = {...request, backgroundProcessingState: state};
+			const payload = {...request, backgroundProcessingState: state, backgroundTask: true};
 			switch (type) {
 				case 'publisher':
 					client.updatePublisherRequest({id: request.id, payload: payload});
@@ -150,8 +151,14 @@ export default function (agenda) {
 		}
 	}
 
-	async function sendEmail(subject, message) {
-		const parseUrl = url.parse(SMTP_URL);
+	async function sendEmail(status, request) {
+		const parseUrl = new URL(SMTP_URL);
+		const query = {queries: [{query: {}}], offset: null};
+		const messageTemplate = await client.getTemplate(query, status);
+		let body = Buffer.from(messageTemplate.body, 'base64').toString('ascii');
+
+		const newBody = stringTemplate.replace(body, {rejectionReason: request.rejectionReason});
+
 		let transporter = nodemailer.createTransport({
 			host: parseUrl.hostname,
 			port: parseUrl.port,
@@ -162,8 +169,8 @@ export default function (agenda) {
 			from: 'test@test.com',
 			to: API_EMAIL,
 			replyTo: 'test@test.com',
-			subject: subject,
-			text: message
+			subject: messageTemplate.subject,
+			text: newBody
 		}, (error, info) => {
 			if (error) {
 				console.log(error);
@@ -176,7 +183,8 @@ export default function (agenda) {
 	async function createResource(request, type) {
 		switch (type) {
 			case 'publisher':
-				client.updatePublisherRequest({id: request.id, payload: createPublisherRequest(formatPublisherRequest(request))});
+				client.updatePublisherRequest({id: request.id, payload: request});
+				await createPublisherRequest(request);
 				break;
 			default:
 				break;
@@ -198,7 +206,7 @@ export default function (agenda) {
 	}
 
 	async function createPublisherRequest(request) {
-		const response = await client.publisherCreation({request: request});
+		const response = await client.publisherCreation({request: formatPublisherRequest(request)});
 		const newRequest = {...request, createdResource: response};
 		return newRequest;
 	}
