@@ -102,7 +102,7 @@ export default function (agenda) {
 		}));
 
 		function setBackground(request, type, state) {
-			const payload = {...request, backgroundProcessingState: state, backgroundTask: true};
+			const payload = {...request, backgroundProcessingState: state};
 			switch (type) {
 				case 'publisher':
 					client.updatePublisherRequest({id: request.id, payload: payload});
@@ -153,11 +153,14 @@ export default function (agenda) {
 
 	async function sendEmail(status, request) {
 		const parseUrl = new URL(SMTP_URL);
+		const templateCache = {};
 		const query = {queries: [{query: {}}], offset: null};
-		const messageTemplate = await client.getTemplate(query, status);
-		let body = Buffer.from(messageTemplate.body, 'base64').toString('ascii');
+		const messageTemplate = await getTemplate({query, status}, templateCache);
+		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
 
-		const newBody = stringTemplate.replace(body, {rejectionReason: request.rejectionReason});
+		const newBody = request ?
+			stringTemplate.replace(body, {rejectionReason: request.rejectionReason}) :
+			stringTemplate.replace(body);
 
 		let transporter = nodemailer.createTransport({
 			host: parseUrl.hostname,
@@ -209,5 +212,14 @@ export default function (agenda) {
 		const response = await client.publisherCreation({request: formatPublisherRequest(request)});
 		const newRequest = {...request, createdResource: response};
 		return newRequest;
+	}
+
+	async function getTemplate({query, status}, cache) {
+		if (status in cache) {
+			return cache[status];
+		}
+
+		cache[status] = await client.getTemplate(query, status);
+		return cache[status];
 	}
 }
