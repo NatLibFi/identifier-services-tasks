@@ -43,7 +43,8 @@ export function createApiClient({url, username, password}) {
 		publisherCreationRequest,
 		fetchPublishersRequestsList,
 		fetchPublisherRequest,
-		updatePublisherRequest
+		updatePublisherRequest,
+		getTemplate
 	};
 
 	async function publisherCreation({request}) {
@@ -118,6 +119,35 @@ export function createApiClient({url, username, password}) {
 
 		if (response.status !== HttpStatus.NO_CONTENT) {
 			throw new ApiError(response.status);
+		}
+	}
+
+	async function getTemplate(query) {
+		const response = await doRequest(`${url}/templates/query`, {
+			method: 'POST',
+			body: JSON.stringify(query),
+			headers: {
+				'Content-type': 'application/json'
+			}
+		});
+		if (response.status === HttpStatus.OK) {
+			const res = await response.json();
+			const template = res.results.filter(item => item.id);
+			const result = await getTemplateDetail(template[0].id);
+			return result;
+		}
+
+		async function getTemplateDetail(id) {
+			const response = await doRequest(`${url}/templates/${id}`, {
+				headers: {
+					Accept: 'application/json'
+				}
+			});
+
+			if (response.status === HttpStatus.OK) {
+				const result = await response.json();
+				return result;
+			}
 		}
 	}
 

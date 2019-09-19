@@ -38,7 +38,8 @@
     "@natlibfi/identifier-services-commons": "git+https://github.com/natlibfi/identifier-services-commons.git#feature/apiError",
     "@natlibfi/melinda-commons": "^5.0.0",
     "agenda": "^2.0.2",
-    "nodemailer": "^6.2.1"
+    "nodemailer": "^6.2.1",
+    "string-template-js": "^1.0.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.2.0",
