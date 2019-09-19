@@ -151,11 +151,11 @@ export default function (agenda) {
 		}
 	}
 
-	async function sendEmail(status, request) {
+	async function sendEmail(name, request) {
 		const parseUrl = new URL(SMTP_URL);
 		const templateCache = {};
-		const query = {queries: [{query: {}}], offset: null};
-		const messageTemplate = await getTemplate({query, status}, templateCache);
+		const query = {queries: [{query: {name: name}}], offset: null};
+		const messageTemplate = await getTemplate(query, templateCache);
 		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
 
 		const newBody = request ?
@@ -214,12 +214,13 @@ export default function (agenda) {
 		return newRequest;
 	}
 
-	async function getTemplate({query, status}, cache) {
-		if (status in cache) {
-			return cache[status];
+	async function getTemplate(query, cache) {
+		const key = JSON.stringify(query);
+		if (key in cache) {
+			return cache[key];
 		}
 
-		cache[status] = await client.getTemplate(query, status);
-		return cache[status];
+		cache[key] = await client.getTemplate(query);
+		return cache[key];
 	}
 }

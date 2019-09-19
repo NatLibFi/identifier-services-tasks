@@ -122,7 +122,7 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
-	async function getTemplate(query, status) {
+	async function getTemplate(query) {
 		const response = await doRequest(`${url}/templates/query`, {
 			method: 'POST',
 			body: JSON.stringify(query),
@@ -132,7 +132,7 @@ export function createApiClient({url, username, password}) {
 		});
 		if (response.status === HttpStatus.OK) {
 			const res = await response.json();
-			const template = res.results.filter(item => item.name === status && item.id);
+			const template = res.results.filter(item => item.id);
 			const result = await getTemplateDetail(template[0].id);
 			return result;
 		}
