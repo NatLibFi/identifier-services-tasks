@@ -105,7 +105,7 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			switch (type) {
 				case 'publisher':
-					client.updatePublisherRequest({id: request.id, payload: payload});
+					client.reform().publisherRequest({id: request.id, payload: payload});
 					break;
 				default:
 					break;
@@ -122,7 +122,7 @@ export default function (agenda) {
 
 			switch (type) {
 				case 'publisher':
-					response = await client.fetchPublishersRequestsList(query);
+					response = await client.get().publishersRequestsList(query);
 					res = await response.json();
 					break;
 				case 'publication':
@@ -186,7 +186,7 @@ export default function (agenda) {
 	async function createResource(request, type) {
 		switch (type) {
 			case 'publisher':
-				client.updatePublisherRequest({id: request.id, payload: request});
+				client.reform().publisherRequest({id: request.id, payload: request});
 				await createPublisherRequest(request);
 				break;
 			default:
@@ -209,7 +209,7 @@ export default function (agenda) {
 	}
 
 	async function createPublisherRequest(request) {
-		const response = await client.publisherCreation({request: formatPublisherRequest(request)});
+		const response = await client.create().publisher({request: formatPublisherRequest(request)});
 		const newRequest = {...request, createdResource: response};
 		return newRequest;
 	}

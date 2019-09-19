@@ -39,16 +39,62 @@ export function createApiClient({url, username, password}) {
 	let authHeader;
 
 	return {
-		publisherCreation,
-		publisherCreationRequest,
-		fetchPublishersRequestsList,
-		fetchPublisherRequest,
-		updatePublisherRequest,
+		create,
+		get,
+		reform,
 		getTemplate
 	};
 
-	async function publisherCreation({request}) {
-		const response = await doRequest(`${url}/publishers`, {
+	function create() {
+		return {
+			publisher,
+			publisherRequest
+		};
+
+		async function publisher({request}) {
+			const PATH = `${url}/publishers`;
+			await creation({request, PATH});
+		}
+
+		async function publisherRequest({request}) {
+			const PATH = `${url}/requests/publishers`;
+			await creationRequest({request, PATH});
+		}
+	}
+
+	function get() {
+		return {
+			publisherRequest,
+			publishersRequestsList
+		};
+
+		async function publishersRequestsList(query) {
+			const PATH = `${url}/requests/publishers/query`;
+			const result = await fetchUnauthenticate({query, PATH});
+			return result;
+		}
+
+		async function publisherRequest({id}) {
+			const PATH = `${url}/requests/publishers/${id}`;
+			const result = await fetchAuthenticate({PATH});
+			return result;
+		}
+	}
+
+	function reform() {
+		return {
+			publisherRequest
+		};
+
+		async function publisherRequest({id, payload}) {
+			const PATH = `${url}/requests/publishers/${id}`;
+			const result = await update({payload, PATH});
+			return result;
+		}
+	}
+
+	async function creation({request, PATH}) {
+		const response = await doRequest(PATH, {
 			method: 'POST',
 			body: JSON.stringify(request),
 			headers: {
@@ -64,8 +110,8 @@ export function createApiClient({url, username, password}) {
 		throw new ApiError(response.status);
 	}
 
-	async function publisherCreationRequest({request}) {
-		const response = await doRequest(`${url}/requests/publishers`, {
+	async function creationRequest({request, PATH}) {
+		const response = await doRequest(PATH, {
 			method: 'POST',
 			body: request,
 			headers: {
@@ -85,8 +131,8 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
-	async function fetchPublishersRequestsList(query) {
-		const response = await doRequest(`${url}/requests/publishers/query`, {
+	async function fetchUnauthenticate({query, PATH}) {
+		const response = await doRequest(PATH, {
 			method: 'POST',
 			body: JSON.stringify(query),
 			headers: {
@@ -96,8 +142,8 @@ export function createApiClient({url, username, password}) {
 		return response;
 	}
 
-	async function fetchPublisherRequest({id}) {
-		const response = await doRequest(`${url}/requests/publishers/${id}`, {
+	async function fetchAuthenticate({PATH}) {
+		const response = await doRequest(PATH, {
 			headers: {
 				Accept: 'application/json'
 			}
@@ -108,8 +154,8 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
-	async function updatePublisherRequest({id, payload}) {
-		const response = await doRequest(`${url}/requests/publishers/${id}`, {
+	async function update({payload, PATH}) {
+		const response = await doRequest(PATH, {
 			method: 'PUT',
 			body: JSON.stringify(payload),
 			headers: {
