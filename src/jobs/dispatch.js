@@ -33,9 +33,15 @@ import nodemailer from 'nodemailer';
 import stringTemplate from 'string-template-js';
 import {
 	API_URL,
-	JOB_REQUEST_STATE_NEW,
-	JOB_REQUEST_STATE_ACCEPTED,
-	JOB_REQUEST_STATE_REJECTED,
+	JOB_PUBLISHER_REQUEST_STATE_NEW,
+	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
@@ -53,11 +59,38 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_STATE_NEW, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
-	agenda.define(JOB_REQUEST_STATE_ACCEPTED, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
-	agenda.define(JOB_REQUEST_STATE_REJECTED, {concurrency: 1}, (job, done) => request(job, done, 'publisher'));
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'new', 'publisher');
+	});
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'accepted', 'publisher');
+	});
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'rejected', 'publisher');
+	});
 
-	async function request(job, done, type) {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'new', 'publication', 'isbnIsmn');
+	});
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'accepted', 'publication', 'isbnIsmn');
+	});
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'rejected', 'publication', 'isbnIsmn');
+	});
+
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'new', 'publication', 'issn');
+	});
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'accepted', 'publication', 'issn');
+	});
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'rejected', 'publication', 'issn');
+	});
+
+	// eslint-disable-next-line max-params
+	async function request(job, done, state, type, subtype) {
 		try {
 			await getRequests();
 		} finally {
@@ -67,46 +100,52 @@ export default function (agenda) {
 		async function getRequests() {
 			await processRequest({
 				client, processCallback,
-				query: {queries: [{query: {state: job.attrs.name, backgroundProcessingState: 'pending'}}], offset: null},
-				messageCallback: count => `${count} requests are pending`, type: type
+				query: {queries: [{query: {state: state, backgroundProcessingState: 'pending'}}], offset: null},
+				messageCallback: count => `${count} requests are pending`, type: type, subtype: subtype
 			});
 		}
 	}
 
-	async function processCallback(requests, type) {
+	async function processCallback(requests, type, subtype) {
 		await Promise.all(requests.map(async request => {
-			setBackground(request, type, 'inProgress');
+			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
-					return (
-						await sendEmail('publisher request new'),
-						setBackground(request, type, 'processed')
-					);
+					await sendEmail(`${type} request new`);
+					await setBackground(request, type, subtype, 'processed');
+					break;
 
 				case 'rejected':
-					return (
-						await sendEmail('publisher request rejected', request),
-						setBackground(request, type, 'processed')
-					);
+					await sendEmail(`${type} request rejected`, request);
+					await setBackground(request, type, subtype, 'processed');
+					break;
 
 				case 'accepted':
-					return (
-						await createResource(request, type),
-						await sendEmail('publisher request accepted'),
-						setBackground(request, type, 'processed')
-					);
+					await createResource(request, type, subtype);
+					await sendEmail(`${type} request accepted`);
+					await setBackground(request, type, subtype, 'processed');
+					break;
 
 				default:
-					return null;
+					break;
 			}
 		}));
 
-		function setBackground(request, type, state) {
+		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
 			switch (type) {
 				case 'publisher':
-					client.reform().publisherRequest({id: request.id, payload: payload});
+					await client.reform().publisherRequest({id: request.id, payload: payload});
 					break;
+				case 'publication':
+					if (subtype === 'isbnIsmn') {
+						await client.reform().publicationRequest().isbnIsmn({id: request.id, payload: payload});
+						break;
+					} else {
+						await client.reform().publicationRequest().issn({id: request.id, payload: payload});
+						break;
+					}
+
 				default:
 					break;
 			}
@@ -115,7 +154,7 @@ export default function (agenda) {
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, type, filter = () => true}) {
+	async function processRequest({client, processCallback, messageCallback, query, type, subtype, filter = () => true}) {
 		try {
 			let response;
 			let res;
@@ -126,8 +165,16 @@ export default function (agenda) {
 					res = await response.json();
 					break;
 				case 'publication':
-					console.log('Not availabe yet');
-					break;
+					if (subtype === 'isbnIsmn') {
+						response = await client.get().publicationRequestList().isbnIsmn(query);
+						res = await response.json();
+						break;
+					} else {
+						response = await client.get().publicationRequestList().issn(query);
+						res = await response.json();
+						break;
+					}
+
 				default:
 					break;
 			}
@@ -138,7 +185,7 @@ export default function (agenda) {
 			if (res.results) {
 				const filteredRequests = res.results.filter(filter);
 				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests, type));
+				pendingProcessors.push(processCallback(filteredRequests, type, subtype));
 			}
 
 			if (messageCallback) {
@@ -157,7 +204,6 @@ export default function (agenda) {
 		const query = {queries: [{query: {name: name}}], offset: null};
 		const messageTemplate = await getTemplate(query, templateCache);
 		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
-
 		const newBody = request ?
 			stringTemplate.replace(body, {rejectionReason: request.rejectionReason}) :
 			stringTemplate.replace(body);
@@ -183,12 +229,22 @@ export default function (agenda) {
 		});
 	}
 
-	async function createResource(request, type) {
+	async function createResource(request, type, subtype) {
 		switch (type) {
 			case 'publisher':
-				client.reform().publisherRequest({id: request.id, payload: request});
-				await createPublisherRequest(request);
+				await client.reform().publisherRequest({id: request.id, payload: request});
+				await create(request, type, subtype);
 				break;
+			case 'publication':
+				if (subtype === 'isbnIsmn') {
+					await client.reform().publicationRequest().isbnIsmn({id: request.id, payload: request});
+				} else {
+					await client.reform().publicationRequest().issn({id: request.id, payload: request});
+				}
+
+				await create(request, type, subtype);
+				break;
+
 			default:
 				break;
 		}
@@ -208,8 +264,35 @@ export default function (agenda) {
 		return formatRequest;
 	}
 
-	async function createPublisherRequest(request) {
-		const response = await client.create().publisher({request: formatPublisherRequest(request)});
+	function formatPublication(request) {
+		const {backgroundProcessingState, state, notes, ...rest} = {...request};
+		const formatRequest = {
+			...rest
+		};
+		return formatRequest;
+	}
+
+	async function create(request, type, subtype) {
+		let response;
+
+		switch (type) {
+			case 'publisher':
+				response = await client.create().publisher({request: formatPublisherRequest(request)});
+				break;
+
+			case 'publication':
+				if (subtype === 'isbnIsmn') {
+					response = await client.create().publication().isbnIsmn({request: formatPublication(request)});
+					break;
+				} else {
+					response = await client.create().publication().issn({request: formatPublication(request)});
+					break;
+				}
+
+			default:
+				break;
+		}
+
 		const newRequest = {...request, createdResource: response};
 		return newRequest;
 	}
