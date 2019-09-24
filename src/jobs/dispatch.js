@@ -60,33 +60,33 @@ export default function (agenda) {
 	});
 
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publisher');
+		await request(job, done, 'new', 'publishers');
 	});
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publisher');
+		await request(job, done, 'accepted', 'publishers');
 	});
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publisher');
+		await request(job, done, 'rejected', 'publishers');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publication', 'isbnIsmn');
+		await request(job, done, 'new', 'publications', 'isbn-ismn');
 	});
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publication', 'isbnIsmn');
+		await request(job, done, 'accepted', 'publications', 'isbn-ismn');
 	});
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publication', 'isbnIsmn');
+		await request(job, done, 'rejected', 'publications', 'isbn-ismn');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publication', 'issn');
+		await request(job, done, 'new', 'publications', 'issn');
 	});
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publication', 'issn');
+		await request(job, done, 'accepted', 'publications', 'issn');
 	});
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publication', 'issn');
+		await request(job, done, 'rejected', 'publications', 'issn');
 	});
 
 	// eslint-disable-next-line max-params
@@ -133,19 +133,14 @@ export default function (agenda) {
 
 		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
-			const {publisher, publication} = client;
+			const {requests} = client;
 			switch (type) {
-				case 'publisher':
-					await publisher.updatePublisherRequest({id: request.id, payload: payload});
+				case 'publishers':
+					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
 					break;
-				case 'publication':
-					if (subtype === 'isbnIsmn') {
-						await publication.updateIsbnIsmnRequest({id: request.id, payload: payload});
-						break;
-					} else {
-						await publication.updateIssnRequest({id: request.id, payload: payload});
-						break;
-					}
+				case 'publications':
+					await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
+					break;
 
 				default:
 					break;
@@ -159,22 +154,16 @@ export default function (agenda) {
 		try {
 			let response;
 			let res;
-			const {publisher, publication} = client;
+			const {requests} = client;
 			switch (type) {
-				case 'publisher':
-					response = await publisher.getPublishersRequestsList(query);
+				case 'publishers':
+					response = await requests.fetchList({path: `requests/${type}`, query: query});
 					res = await response.json();
 					break;
-				case 'publication':
-					if (subtype === 'isbnIsmn') {
-						response = await publication.getIsbnIsmnList(query);
-						res = await response.json();
-						break;
-					} else {
-						response = await publication.getIssnList(query);
-						res = await response.json();
-						break;
-					}
+				case 'publications':
+					response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
+					res = await response.json();
+					break;
 
 				default:
 					break;
@@ -231,19 +220,14 @@ export default function (agenda) {
 	}
 
 	async function createResource(request, type, subtype) {
-		const {publisher, publication} = client;
+		const {publishers, publications} = client.requests;
 		switch (type) {
-			case 'publisher':
-				await publisher.updatePublisherRequest({id: request.id, payload: await create(request, type, subtype)});
+			case 'publishers':
+				await publishers.update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
 				break;
-			case 'publication':
-				if (subtype === 'isbnIsmn') {
-					await publication.updateIsbnIsmnRequest({id: request.id, payload: await create(request, type, subtype)});
-					break;
-				} else {
-					await publication.updateIssnRequest({id: request.id, payload: await create(request, type, subtype)});
-					break;
-				}
+			case 'publications':
+				await publications.update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				break;
 
 			default:
 				break;
@@ -276,19 +260,15 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-		const {publisher, publication} = client;
+		const {publishers, publications} = client;
 		switch (type) {
-			case 'publisher':
-				response = await publisher.createPublisher({request: formatPublisherRequest(request)});
+			case 'publishers':
+				response = await publishers.create({path: type, payload: formatPublisherRequest(request)});
 				break;
 
-			case 'publication':
-				if (subtype === 'isbnIsmn') {
-					response = await publication.createIsbnIsmn({request: formatPublication(request)});
-					break;
-				} else {
-					break;
-				}
+			case 'publications':
+				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(request)});
+				break;
 
 			default:
 				break;
@@ -304,7 +284,7 @@ export default function (agenda) {
 			return cache[key];
 		}
 
-		cache[key] = await client.template.getTemplate(query);
+		cache[key] = await client.templates.getTemplate(query);
 		return cache[key];
 	}
 }
