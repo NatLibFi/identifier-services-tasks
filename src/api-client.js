@@ -39,7 +39,6 @@ export function createApiClient({url, username, password}) {
 	return {
 		publisher: {
 			createPublisher,
-			creaetePublisherRequest,
 			getPublisherRequest,
 			getPublishersRequestsList,
 			updatePublisherRequest,
@@ -63,32 +62,27 @@ export function createApiClient({url, username, password}) {
 
 	async function createPublisher({request}) {
 		const PATH = `${url}/publishers`;
-		await creation({PATH, request});
-	}
-
-	async function creaetePublisherRequest({request}) {
-		const PATH = `${url}/requests/publishers`;
-		await creationRequest({PATH, request});
+		return creation({PATH, request});
 	}
 
 	async function createIsbnIsmn({request}) {
 		const PATH = `${url}/publications/isbn-ismn`;
-		await creation({PATH, request});
+		return creation({PATH, request});
 	}
 
 	async function createIssn({request}) {
 		const PATH = `${url}/publications/issn`;
-		await creation({PATH, request});
+		return creation({PATH, request});
 	}
 
 	async function createIsbnIsmnRequest({request}) {
 		const PATH = `${url}/requests/publications/isbn-ismn`;
-		await creation({PATH, request});
+		return creation({PATH, request});
 	}
 
 	async function createIssnRequest({request}) {
 		const PATH = `${url}/requests/publications/issn`;
-		await creation({PATH, request});
+		return creation({PATH, request});
 	}
 
 	async function getPublishersRequestsList(query) {
@@ -176,27 +170,6 @@ export function createApiClient({url, username, password}) {
 		}
 
 		throw new ApiError(response.status);
-	}
-
-	async function creationRequest({PATH, request}) {
-		const response = await doRequest(PATH, {
-			method: 'POST',
-			body: request,
-			headers: {
-				'Content-type': 'application/json'
-			}
-
-		});
-
-		if (response.statues === HttpStatus.CREATED) {
-			return parseRequestId();
-		}
-
-		throw new ApiError(response.status);
-
-		function parseRequestId() {
-			return /\/(.[^/]*)$/.exec(response.headers.get('location'))[1];
-		}
 	}
 
 	async function fetchUnauthenticate({PATH, query}) {

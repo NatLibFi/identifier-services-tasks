@@ -234,22 +234,22 @@ export default function (agenda) {
 		const {publisher, publication} = client;
 		switch (type) {
 			case 'publisher':
-				await publisher.updatePublisherRequest({id: request.id, payload: request});
-				await create(request, type, subtype);
+				await publisher.updatePublisherRequest({id: request.id, payload: await create(request, type, subtype)});
 				break;
 			case 'publication':
 				if (subtype === 'isbnIsmn') {
-					await publication.updateIsbnIsmnRequest({id: request.id, payload: request});
+					await publication.updateIsbnIsmnRequest({id: request.id, payload: await create(request, type, subtype)});
+					break;
 				} else {
-					await publication.updateIssnRequest({id: request.id, payload: request});
+					await publication.updateIssnRequest({id: request.id, payload: await create(request, type, subtype)});
+					break;
 				}
-
-				await create(request, type, subtype);
-				break;
 
 			default:
 				break;
 		}
+
+		return null;
 	}
 
 	function formatPublisherRequest(request) {
