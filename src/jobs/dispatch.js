@@ -133,18 +133,17 @@ export default function (agenda) {
 
 		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
-			const {publisherRequest, publicationRequest} = client.update();
-			const {isbnIsmn, issn} = publicationRequest();
+			const {publisher, publication} = client;
 			switch (type) {
 				case 'publisher':
-					await publisherRequest({id: request.id, payload: payload});
+					await publisher.updatePublisherRequest({id: request.id, payload: payload});
 					break;
 				case 'publication':
 					if (subtype === 'isbnIsmn') {
-						await isbnIsmn({id: request.id, payload: payload});
+						await publication.updateIsbnIsmnRequest({id: request.id, payload: payload});
 						break;
 					} else {
-						await issn({id: request.id, payload: payload});
+						await publication.updateIssnRequest({id: request.id, payload: payload});
 						break;
 					}
 
@@ -160,20 +159,19 @@ export default function (agenda) {
 		try {
 			let response;
 			let res;
-			const {publishersRequestsList, publicationRequestList} = client.get();
-			const {isbnIsmn, issn} = publicationRequestList();
+			const {publisher, publication} = client;
 			switch (type) {
 				case 'publisher':
-					response = await publishersRequestsList(query);
+					response = await publisher.getPublishersRequestsList(query);
 					res = await response.json();
 					break;
 				case 'publication':
 					if (subtype === 'isbnIsmn') {
-						response = await isbnIsmn(query);
+						response = await publication.getIsbnIsmnList(query);
 						res = await response.json();
 						break;
 					} else {
-						response = await issn(query);
+						response = await publication.getIssnList(query);
 						res = await response.json();
 						break;
 					}
@@ -233,18 +231,17 @@ export default function (agenda) {
 	}
 
 	async function createResource(request, type, subtype) {
-		const {publisherRequest, publicationRequest} = client.update();
-		const {isbnIsmn, issn} = publicationRequest();
+		const {publisher, publication} = client;
 		switch (type) {
 			case 'publisher':
-				await publisherRequest({id: request.id, payload: request});
+				await publisher.updatePublisherRequest({id: request.id, payload: request});
 				await create(request, type, subtype);
 				break;
 			case 'publication':
 				if (subtype === 'isbnIsmn') {
-					await isbnIsmn({id: request.id, payload: request});
+					await publication.updateIsbnIsmnRequest({id: request.id, payload: request});
 				} else {
-					await issn({id: request.id, payload: request});
+					await publication.updateIssnRequest({id: request.id, payload: request});
 				}
 
 				await create(request, type, subtype);
@@ -270,8 +267,7 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, notes, ...rest} = {...request};
-		console.log(request);
+		const {backgroundProcessingState, notes, publisher, lastUpdated, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
@@ -280,19 +276,17 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-		const {publisher, publication} = client.create();
-		const {isbnIsmn, issn} = publication();
+		const {publisher, publication} = client;
 		switch (type) {
 			case 'publisher':
-				response = await publisher({request: formatPublisherRequest(request)});
+				response = await publisher.createPublisher({request: formatPublisherRequest(request)});
 				break;
 
 			case 'publication':
 				if (subtype === 'isbnIsmn') {
-					// response = await isbnIsmn({request: formatPublication(request)});
+					response = await publication.createIsbnIsmn({request: formatPublication(request)});
 					break;
 				} else {
-					// response = await issn({request: formatPublication(request)});
 					break;
 				}
 
@@ -310,7 +304,7 @@ export default function (agenda) {
 			return cache[key];
 		}
 
-		cache[key] = await client.getTemplate(query);
+		cache[key] = await client.template.getTemplate(query);
 		return cache[key];
 	}
 }

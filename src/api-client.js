@@ -37,113 +37,125 @@ export function createApiClient({url, username, password}) {
 	let authHeader;
 
 	return {
-		create,
-		get,
-		update,
-		getTemplate
+		publisher: {
+			createPublisher,
+			creaetePublisherRequest,
+			getPublisherRequest,
+			getPublishersRequestsList,
+			updatePublisherRequest,
+			getTemplate
+		},
+		publication: {
+			createIsbnIsmn,
+			createIsbnIsmnRequest,
+			createIssn,
+			createIssnRequest,
+			getIsbnIsmnList,
+			getIssnList,
+			updateIsbnIsmnRequest,
+			updateIssnRequest
+		},
+		template: {
+			getTemplate
+		}
+
 	};
 
-	function create() {
-		return {
-			publisher,
-			publisherRequest,
-			publication
-		};
-
-		async function publisher({request}) {
-			const PATH = `${url}/publishers`;
-			await creation({PATH, request});
-		}
-
-		async function publisherRequest({request}) {
-			const PATH = `${url}/requests/publishers`;
-			await creationRequest({PATH, request});
-		}
-
-		function publication() {
-			return {
-				isbnIsmn,
-				issn
-			};
-
-			async function isbnIsmn({request}) {
-				const PATH = `${url}/publications/isbn-ismn`;
-				await creationRequest({PATH, request});
-			}
-
-			async function issn({request}) {
-				const PATH = `${url}/publications/issn`;
-				await creationRequest({PATH, request});
-			}
-		}
+	async function createPublisher({request}) {
+		const PATH = `${url}/publishers`;
+		await creation({PATH, request});
 	}
 
-	function get() {
-		return {
-			publisherRequest,
-			publishersRequestsList,
-			publicationRequestList
-		};
-
-		async function publishersRequestsList(query) {
-			const PATH = `${url}/requests/publishers/query`;
-			const result = await fetchUnauthenticate({PATH, query});
-			return result;
-		}
-
-		async function publisherRequest({id}) {
-			const PATH = `${url}/requests/publishers/${id}`;
-			const result = await fetchAuthenticate({PATH});
-			return result;
-		}
-
-		function publicationRequestList() {
-			return {
-				isbnIsmn,
-				issn
-			};
-
-			async function isbnIsmn(query) {
-				const PATH = `${url}/requests/publications/isbn-ismn/query`;
-				const result = await fetchAuthenticateList({PATH, query});
-				return result;
-			}
-
-			async function issn(query) {
-				const PATH = `${url}/requests/publications/issn/query`;
-				const result = await fetchAuthenticateList({PATH, query});
-				return result;
-			}
-		}
+	async function creaetePublisherRequest({request}) {
+		const PATH = `${url}/requests/publishers`;
+		await creationRequest({PATH, request});
 	}
 
-	function update() {
-		return {
-			publisherRequest,
-			publicationRequest
-		};
+	async function createIsbnIsmn({request}) {
+		const PATH = `${url}/publications/isbn-ismn`;
+		await creation({PATH, request});
+	}
 
-		async function publisherRequest({id, payload}) {
-			const PATH = `${url}/requests/publishers/${id}`;
-			const result = await updateRequest({PATH, payload});
+	async function createIssn({request}) {
+		const PATH = `${url}/publications/issn`;
+		await creation({PATH, request});
+	}
+
+	async function createIsbnIsmnRequest({request}) {
+		const PATH = `${url}/requests/publications/isbn-ismn`;
+		await creation({PATH, request});
+	}
+
+	async function createIssnRequest({request}) {
+		const PATH = `${url}/requests/publications/issn`;
+		await creation({PATH, request});
+	}
+
+	async function getPublishersRequestsList(query) {
+		const PATH = `${url}/requests/publishers/query`;
+		const result = await fetchUnauthenticate({PATH, query});
+		return result;
+	}
+
+	async function getPublisherRequest({id}) {
+		const PATH = `${url}/requests/publishers/${id}`;
+		const result = await fetchAuthenticate({PATH});
+		return result;
+	}
+
+	async function getIsbnIsmnList(query) {
+		const PATH = `${url}/requests/publications/isbn-ismn/query`;
+		const result = await fetchAuthenticateList({PATH, query});
+		return result;
+	}
+
+	async function getIssnList(query) {
+		const PATH = `${url}/requests/publications/issn/query`;
+		const result = await fetchAuthenticateList({PATH, query});
+		return result;
+	}
+
+	async function updatePublisherRequest({id, payload}) {
+		const PATH = `${url}/requests/publishers/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
+	}
+
+	async function updateIsbnIsmnRequest({id, payload}) {
+		const PATH = `${url}/requests/publications/isbn-ismn/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
+	}
+
+	async function updateIssnRequest({id, payload}) {
+		const PATH = `${url}/requests/publications/issn/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
+	}
+
+	async function getTemplate(query) {
+		const response = await doRequest(`${url}/templates/query`, {
+			method: 'POST',
+			body: JSON.stringify(query),
+			headers: {
+				'Content-type': 'application/json'
+			}
+		});
+		if (response.status === HttpStatus.OK) {
+			const res = await response.json();
+			const template = res.results.filter(item => item.id);
+			const result = await getTemplateDetail(template[0].id);
 			return result;
 		}
 
-		function publicationRequest() {
-			return {
-				isbnIsmn,
-				issn
-			};
-
-			async function isbnIsmn({id, payload}) {
-				const PATH = `${url}/requests/publications/isbn-ismn/${id}`;
-				const result = await updateRequest({PATH, payload});
-				return result;
-			}
-
-			async function issn({id, payload}) {
-				const PATH = `${url}/requests/publications/issn/${id}`;
-				const result = await updateRequest({PATH, payload});
+		async function getTemplateDetail(id) {
+			const response = await doRequest(`${url}/templates/${id}`, {
+				headers: {
+					Accept: 'application/json'
+				}
+			});
+			if (response.status === HttpStatus.OK) {
+				const result = await response.json();
 				return result;
 			}
 		}
@@ -167,7 +179,6 @@ export function createApiClient({url, username, password}) {
 	}
 
 	async function creationRequest({PATH, request}) {
-		console.log(PATH)
 		const response = await doRequest(PATH, {
 			method: 'POST',
 			body: request,
@@ -236,34 +247,6 @@ export function createApiClient({url, username, password}) {
 		}
 
 		throw new ApiError(response.status);
-	}
-
-	async function getTemplate(query) {
-		const response = await doRequest(`${url}/templates/query`, {
-			method: 'POST',
-			body: JSON.stringify(query),
-			headers: {
-				'Content-type': 'application/json'
-			}
-		});
-		if (response.status === HttpStatus.OK) {
-			const res = await response.json();
-			const template = res.results.filter(item => item.id);
-			const result = await getTemplateDetail(template[0].id);
-			return result;
-		}
-
-		async function getTemplateDetail(id) {
-			const response = await doRequest(`${url}/templates/${id}`, {
-				headers: {
-					Accept: 'application/json'
-				}
-			});
-			if (response.status === HttpStatus.OK) {
-				const result = await response.json();
-				return result;
-			}
-		}
 	}
 
 	async function doRequest(reqUrl, reqOptions) {
