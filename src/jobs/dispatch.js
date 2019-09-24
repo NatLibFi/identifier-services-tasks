@@ -133,16 +133,18 @@ export default function (agenda) {
 
 		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
+			const {publisherRequest, publicationRequest} = client.update();
+			const {isbnIsmn, issn} = publicationRequest();
 			switch (type) {
 				case 'publisher':
-					await client.reform().publisherRequest({id: request.id, payload: payload});
+					await publisherRequest({id: request.id, payload: payload});
 					break;
 				case 'publication':
 					if (subtype === 'isbnIsmn') {
-						await client.reform().publicationRequest().isbnIsmn({id: request.id, payload: payload});
+						await isbnIsmn({id: request.id, payload: payload});
 						break;
 					} else {
-						await client.reform().publicationRequest().issn({id: request.id, payload: payload});
+						await issn({id: request.id, payload: payload});
 						break;
 					}
 
@@ -158,19 +160,20 @@ export default function (agenda) {
 		try {
 			let response;
 			let res;
-
+			const {publishersRequestsList, publicationRequestList} = client.get();
+			const {isbnIsmn, issn} = publicationRequestList();
 			switch (type) {
 				case 'publisher':
-					response = await client.get().publishersRequestsList(query);
+					response = await publishersRequestsList(query);
 					res = await response.json();
 					break;
 				case 'publication':
 					if (subtype === 'isbnIsmn') {
-						response = await client.get().publicationRequestList().isbnIsmn(query);
+						response = await isbnIsmn(query);
 						res = await response.json();
 						break;
 					} else {
-						response = await client.get().publicationRequestList().issn(query);
+						response = await issn(query);
 						res = await response.json();
 						break;
 					}
@@ -230,16 +233,18 @@ export default function (agenda) {
 	}
 
 	async function createResource(request, type, subtype) {
+		const {publisherRequest, publicationRequest} = client.update();
+		const {isbnIsmn, issn} = publicationRequest();
 		switch (type) {
 			case 'publisher':
-				await client.reform().publisherRequest({id: request.id, payload: request});
+				await publisherRequest({id: request.id, payload: request});
 				await create(request, type, subtype);
 				break;
 			case 'publication':
 				if (subtype === 'isbnIsmn') {
-					await client.reform().publicationRequest().isbnIsmn({id: request.id, payload: request});
+					await isbnIsmn({id: request.id, payload: request});
 				} else {
-					await client.reform().publicationRequest().issn({id: request.id, payload: request});
+					await issn({id: request.id, payload: request});
 				}
 
 				await create(request, type, subtype);
@@ -266,6 +271,7 @@ export default function (agenda) {
 
 	function formatPublication(request) {
 		const {backgroundProcessingState, state, notes, ...rest} = {...request};
+		console.log(request);
 		const formatRequest = {
 			...rest
 		};
@@ -274,18 +280,19 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-
+		const {publisher, publication} = client.create();
+		const {isbnIsmn, issn} = publication();
 		switch (type) {
 			case 'publisher':
-				response = await client.create().publisher({request: formatPublisherRequest(request)});
+				response = await publisher({request: formatPublisherRequest(request)});
 				break;
 
 			case 'publication':
 				if (subtype === 'isbnIsmn') {
-					response = await client.create().publication().isbnIsmn({request: formatPublication(request)});
+					// response = await isbnIsmn({request: formatPublication(request)});
 					break;
 				} else {
-					response = await client.create().publication().issn({request: formatPublication(request)});
+					// response = await issn({request: formatPublication(request)});
 					break;
 				}
 

@@ -39,7 +39,7 @@ export function createApiClient({url, username, password}) {
 	return {
 		create,
 		get,
-		reform,
+		update,
 		getTemplate
 	};
 
@@ -117,7 +117,7 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
-	function reform() {
+	function update() {
 		return {
 			publisherRequest,
 			publicationRequest
@@ -125,7 +125,7 @@ export function createApiClient({url, username, password}) {
 
 		async function publisherRequest({id, payload}) {
 			const PATH = `${url}/requests/publishers/${id}`;
-			const result = await update({PATH, payload});
+			const result = await updateRequest({PATH, payload});
 			return result;
 		}
 
@@ -137,13 +137,13 @@ export function createApiClient({url, username, password}) {
 
 			async function isbnIsmn({id, payload}) {
 				const PATH = `${url}/requests/publications/isbn-ismn/${id}`;
-				const result = await update({PATH, payload});
+				const result = await updateRequest({PATH, payload});
 				return result;
 			}
 
 			async function issn({id, payload}) {
 				const PATH = `${url}/requests/publications/issn/${id}`;
-				const result = await update({PATH, payload});
+				const result = await updateRequest({PATH, payload});
 				return result;
 			}
 		}
@@ -167,6 +167,7 @@ export function createApiClient({url, username, password}) {
 	}
 
 	async function creationRequest({PATH, request}) {
+		console.log(PATH)
 		const response = await doRequest(PATH, {
 			method: 'POST',
 			body: request,
@@ -222,7 +223,7 @@ export function createApiClient({url, username, password}) {
 		return response;
 	}
 
-	async function update({payload, PATH}) {
+	async function updateRequest({payload, PATH}) {
 		const response = await doRequest(PATH, {
 			method: 'PUT',
 			body: JSON.stringify(payload),
