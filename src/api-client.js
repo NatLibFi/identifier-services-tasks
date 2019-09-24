@@ -14,9 +14,7 @@
  * License, or (at your option) any later version.
  *
  * identifier-services-ui is distributed in the hope that it will be useful,
-	console.log(values);
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-	console.log(values);
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
@@ -39,87 +37,100 @@ export function createApiClient({url, username, password}) {
 	let authHeader;
 
 	return {
-		publisherCreation,
-		publisherCreationRequest,
-		fetchPublishersRequestsList,
-		fetchPublisherRequest,
-		updatePublisherRequest,
-		getTemplate
+		publisher: {
+			createPublisher,
+			creaetePublisherRequest,
+			getPublisherRequest,
+			getPublishersRequestsList,
+			updatePublisherRequest,
+			getTemplate
+		},
+		publication: {
+			createIsbnIsmn,
+			createIsbnIsmnRequest,
+			createIssn,
+			createIssnRequest,
+			getIsbnIsmnList,
+			getIssnList,
+			updateIsbnIsmnRequest,
+			updateIssnRequest
+		},
+		template: {
+			getTemplate
+		}
+
 	};
 
-	async function publisherCreation({request}) {
-		const response = await doRequest(`${url}/publishers`, {
-			method: 'POST',
-			body: JSON.stringify(request),
-			headers: {
-				'Content-type': 'application/json'
-			}
-
-		});
-		if (response.status === HttpStatus.CREATED) {
-			const result = await response.json();
-			return result;
-		}
-
-		throw new ApiError(response.status);
+	async function createPublisher({request}) {
+		const PATH = `${url}/publishers`;
+		await creation({PATH, request});
 	}
 
-	async function publisherCreationRequest({request}) {
-		const response = await doRequest(`${url}/requests/publishers`, {
-			method: 'POST',
-			body: request,
-			headers: {
-				'Content-type': 'application/json'
-			}
-
-		});
-
-		if (response.statues === HttpStatus.CREATED) {
-			return parseRequestPublisherbId();
-		}
-
-		throw new ApiError(response.status);
-
-		function parseRequestPublisherbId() {
-			return /\/(.[^/]*)$/.exec(response.headers.get('location'))[1];
-		}
+	async function creaetePublisherRequest({request}) {
+		const PATH = `${url}/requests/publishers`;
+		await creationRequest({PATH, request});
 	}
 
-	async function fetchPublishersRequestsList(query) {
-		const response = await doRequest(`${url}/requests/publishers/query`, {
-			method: 'POST',
-			body: JSON.stringify(query),
-			headers: {
-				'Content-type': 'application/json'
-			}
-		});
-		return response;
+	async function createIsbnIsmn({request}) {
+		const PATH = `${url}/publications/isbn-ismn`;
+		await creation({PATH, request});
 	}
 
-	async function fetchPublisherRequest({id}) {
-		const response = await doRequest(`${url}/requests/publishers/${id}`, {
-			headers: {
-				Accept: 'application/json'
-			}
-		});
+	async function createIssn({request}) {
+		const PATH = `${url}/publications/issn`;
+		await creation({PATH, request});
+	}
 
-		if (response.status === HttpStatus.OK) {
-			return new ApiError(response.status);
-		}
+	async function createIsbnIsmnRequest({request}) {
+		const PATH = `${url}/requests/publications/isbn-ismn`;
+		await creation({PATH, request});
+	}
+
+	async function createIssnRequest({request}) {
+		const PATH = `${url}/requests/publications/issn`;
+		await creation({PATH, request});
+	}
+
+	async function getPublishersRequestsList(query) {
+		const PATH = `${url}/requests/publishers/query`;
+		const result = await fetchUnauthenticate({PATH, query});
+		return result;
+	}
+
+	async function getPublisherRequest({id}) {
+		const PATH = `${url}/requests/publishers/${id}`;
+		const result = await fetchAuthenticate({PATH});
+		return result;
+	}
+
+	async function getIsbnIsmnList(query) {
+		const PATH = `${url}/requests/publications/isbn-ismn/query`;
+		const result = await fetchAuthenticateList({PATH, query});
+		return result;
+	}
+
+	async function getIssnList(query) {
+		const PATH = `${url}/requests/publications/issn/query`;
+		const result = await fetchAuthenticateList({PATH, query});
+		return result;
 	}
 
 	async function updatePublisherRequest({id, payload}) {
-		const response = await doRequest(`${url}/requests/publishers/${id}`, {
-			method: 'PUT',
-			body: JSON.stringify(payload),
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		});
+		const PATH = `${url}/requests/publishers/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
+	}
 
-		if (response.status !== HttpStatus.NO_CONTENT) {
-			throw new ApiError(response.status);
-		}
+	async function updateIsbnIsmnRequest({id, payload}) {
+		const PATH = `${url}/requests/publications/isbn-ismn/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
+	}
+
+	async function updateIssnRequest({id, payload}) {
+		const PATH = `${url}/requests/publications/issn/${id}`;
+		const result = await updateRequest({PATH, payload});
+		return result;
 	}
 
 	async function getTemplate(query) {
@@ -143,7 +154,6 @@ export function createApiClient({url, username, password}) {
 					Accept: 'application/json'
 				}
 			});
-
 			if (response.status === HttpStatus.OK) {
 				const result = await response.json();
 				return result;
@@ -151,14 +161,100 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
+	async function creation({PATH, request}) {
+		const response = await doRequest(PATH, {
+			method: 'POST',
+			body: JSON.stringify(request),
+			headers: {
+				'Content-type': 'application/json'
+			}
+
+		});
+		if (response.status === HttpStatus.CREATED) {
+			const result = await response.json();
+			return result;
+		}
+
+		throw new ApiError(response.status);
+	}
+
+	async function creationRequest({PATH, request}) {
+		const response = await doRequest(PATH, {
+			method: 'POST',
+			body: request,
+			headers: {
+				'Content-type': 'application/json'
+			}
+
+		});
+
+		if (response.statues === HttpStatus.CREATED) {
+			return parseRequestId();
+		}
+
+		throw new ApiError(response.status);
+
+		function parseRequestId() {
+			return /\/(.[^/]*)$/.exec(response.headers.get('location'))[1];
+		}
+	}
+
+	async function fetchUnauthenticate({PATH, query}) {
+		const response = await doRequest(PATH, {
+			method: 'POST',
+			body: JSON.stringify(query),
+			headers: {
+				'Content-type': 'application/json'
+			}
+		});
+		return response;
+	}
+
+	async function fetchAuthenticate({PATH}) {
+		const response = await doRequest(PATH, {
+			headers: {
+				Accept: 'application/json'
+			}
+		});
+
+		if (response.status === HttpStatus.OK) {
+			return new ApiError(response.status);
+		}
+	}
+
+	async function fetchAuthenticateList({PATH, query}) {
+		const response = await doRequest(PATH, {
+			method: 'POST',
+			body: JSON.stringify(query),
+			headers: {
+				Accept: 'application/json',
+				'Content-type': 'application/json'
+			}
+		});
+		return response;
+	}
+
+	async function updateRequest({payload, PATH}) {
+		const response = await doRequest(PATH, {
+			method: 'PUT',
+			body: JSON.stringify(payload),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		if (response.status === HttpStatus.OK) {
+			return response.status;
+		}
+
+		throw new ApiError(response.status);
+	}
+
 	async function doRequest(reqUrl, reqOptions) {
 		const options = {headers: {}, ...reqOptions};
 
 		if (authHeader) {
 			options.headers.Authorization = authHeader;
-
 			const response = await fetch(reqUrl, options);
-
 			if (response.status === HttpStatus.UNAUTHORIZED) {
 				const token = await getAuthToken();
 				authHeader = `Authorization: Bearer ${token}`;
@@ -174,7 +270,8 @@ export function createApiClient({url, username, password}) {
 		authHeader = `Bearer ${token}`;
 		options.headers.Authorization = authHeader;
 
-		return fetch(reqUrl, options);
+		const result = await fetch(reqUrl, options);
+		return result;
 
 		async function getAuthToken() {
 			const encodedCreds = generateAuthorizationHeader(username, password);
