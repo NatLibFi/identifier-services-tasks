@@ -46,6 +46,9 @@ export const API_EMAIL = readEnvironmentVariable('API_EMAIL');
 export const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_ACCEPTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_ACCEPTED', {defaultValue: '10 seconds'});
+export const JOB_FREQ_PENDING = readEnvironmentVariable('JOB_FREQ_PENDING', {defaultValue: '10 seconds'});
+export const JOB_FREQ_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_IN_PROGRESS', {defaultValue: '10 seconds'});
+export const JOB_FREQ_PROCESSED = readEnvironmentVariable('JOB_FREQ_PROCESSED', {defaultValue: '10 seconds'});
 
 export const JOB_PUBLISHER_REQUEST_STATE_NEW = 'JOB_PUBLISHER_REQUEST_STATE_NEW';
 export const JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS = 'JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS';
@@ -65,3 +68,7 @@ export const JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED = 'JOB_PUBLICATION_ISSN
 export const JOB_BACKGROUND_PROCESSING_PENDING = 'pending';
 export const JOB_BACKGROUND_PROCESSING_IN_PROGRESS = 'inProgress';
 export const JOB_BACKGROUND_PROCESSING_PROCESSED = 'processed';
+
+export const JOB_BIBLIOGRAPHIC_METADATA_PENDING = 'JOB_BIBLIOGRAPHIC_METADATA_PENDING';
+export const JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS = 'JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS';
+export const JOB_BIBLIOGRAPHIC_METADATA_PROCESSED = 'JOB_BIBLIOGRAPHIC_METADATA_PROCESSED';

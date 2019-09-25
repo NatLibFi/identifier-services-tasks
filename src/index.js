@@ -28,11 +28,14 @@
 
 import {Utils} from '@natlibfi/melinda-commons';
 import Agenda from 'agenda';
-import {createRequestJobs} from './jobs';
+import {createRequestJobs, blobinMelinda} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
 	TZ,
+	JOB_FREQ_PENDING,
+	JOB_FREQ_IN_PROGRESS,
+	JOB_FREQ_PROCESSED,
 	JOB_FREQ_REQUEST_STATE_NEW,
 	JOB_FREQ_REQUEST_STATE_ACCEPTED,
 	JOB_FREQ_REQUEST_STATE_REJECTED,
@@ -44,7 +47,10 @@ import {
 	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
-	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
+	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	JOB_BIBLIOGRAPHIC_METADATA_PROCESSED
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -74,6 +80,7 @@ async function run() {
 		const opts = TZ ? {timezone: TZ} : {};
 
 		createRequestJobs(agenda);
+		blobinMelinda(agenda);
 
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLISHER_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {}, opts);
@@ -86,6 +93,10 @@ async function run() {
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {}, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
+		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
+		agenda.every(JOB_FREQ_PROCESSED, JOB_BIBLIOGRAPHIC_METADATA_PROCESSED, undefined, opts);
 
 		agenda.start();
 	});

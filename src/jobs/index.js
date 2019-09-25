@@ -27,3 +27,4 @@
 */
 
 export {default as createRequestJobs} from './dispatch';
+export {default as blobinMelinda} from './createBlob';
