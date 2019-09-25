@@ -96,7 +96,6 @@ async function run() {
 
 		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
 		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
-		agenda.every(JOB_FREQ_PROCESSED, JOB_BIBLIOGRAPHIC_METADATA_PROCESSED, undefined, opts);
 
 		agenda.start();
 	});

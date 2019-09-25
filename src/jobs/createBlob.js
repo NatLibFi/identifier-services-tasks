@@ -59,10 +59,6 @@ export default function (agenda) {
 		await request(job, done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS);
 	});
 
-	agenda.define(JOB_BIBLIOGRAPHIC_METADATA_PROCESSED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, JOB_BACKGROUND_PROCESSING_PROCESSED);
-	});
-
 	async function request(job, done, state) {
 		try {
 			await getRequests();
