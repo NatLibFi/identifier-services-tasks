@@ -37,95 +37,25 @@ export function createApiClient({url, username, password}) {
 	let authHeader;
 
 	return {
-		publisher: {
-			createPublisher,
-			getPublisherRequest,
-			getPublishersRequestsList,
-			updatePublisherRequest,
+		publishers: {
+			create,
+			update,
 			getTemplate
 		},
-		publication: {
-			createIsbnIsmn,
-			createIsbnIsmnRequest,
-			createIssn,
-			createIssnRequest,
-			getIsbnIsmnList,
-			getIssnList,
-			updateIsbnIsmnRequest,
-			updateIssnRequest
+		publications: {
+			create,
+			update
 		},
-		template: {
+		requests: {
+			fetchList,
+			create,
+			update
+		},
+		templates: {
 			getTemplate
 		}
 
 	};
-
-	async function createPublisher({request}) {
-		const PATH = `${url}/publishers`;
-		return creation({PATH, request});
-	}
-
-	async function createIsbnIsmn({request}) {
-		const PATH = `${url}/publications/isbn-ismn`;
-		return creation({PATH, request});
-	}
-
-	async function createIssn({request}) {
-		const PATH = `${url}/publications/issn`;
-		return creation({PATH, request});
-	}
-
-	async function createIsbnIsmnRequest({request}) {
-		const PATH = `${url}/requests/publications/isbn-ismn`;
-		return creation({PATH, request});
-	}
-
-	async function createIssnRequest({request}) {
-		const PATH = `${url}/requests/publications/issn`;
-		return creation({PATH, request});
-	}
-
-	async function getPublishersRequestsList(query) {
-		const PATH = `${url}/requests/publishers/query`;
-		const result = await fetchUnauthenticate({PATH, query});
-		return result;
-	}
-
-	async function getPublisherRequest({id}) {
-		const PATH = `${url}/requests/publishers/${id}`;
-		const result = await fetchAuthenticate({PATH});
-		return result;
-	}
-
-	async function getIsbnIsmnList(query) {
-		const PATH = `${url}/requests/publications/isbn-ismn/query`;
-		const result = await fetchAuthenticateList({PATH, query});
-		return result;
-	}
-
-	async function getIssnList(query) {
-		const PATH = `${url}/requests/publications/issn/query`;
-		const result = await fetchAuthenticateList({PATH, query});
-		return result;
-	}
-
-	async function updatePublisherRequest({id, payload}) {
-		const PATH = `${url}/requests/publishers/${id}`;
-		const result = await updateRequest({PATH, payload});
-		return result;
-	}
-
-	async function updateIsbnIsmnRequest({id, payload}) {
-		const PATH = `${url}/requests/publications/isbn-ismn/${id}`;
-		const result = await updateRequest({PATH, payload});
-		return result;
-	}
-
-	async function updateIssnRequest({id, payload}) {
-		const PATH = `${url}/requests/publications/issn/${id}`;
-		const result = await updateRequest({PATH, payload});
-		return result;
-	}
 
 	async function getTemplate(query) {
 		const response = await doRequest(`${url}/templates/query`, {
@@ -155,10 +85,10 @@ export function createApiClient({url, username, password}) {
 		}
 	}
 
-	async function creation({PATH, request}) {
-		const response = await doRequest(PATH, {
+	async function create({path, payload}) {
+		const response = await doRequest(`${url}/${path}`, {
 			method: 'POST',
-			body: JSON.stringify(request),
+			body: JSON.stringify(payload),
 			headers: {
 				'Content-type': 'application/json'
 			}
@@ -172,31 +102,24 @@ export function createApiClient({url, username, password}) {
 		throw new ApiError(response.status);
 	}
 
-	async function fetchUnauthenticate({PATH, query}) {
-		const response = await doRequest(PATH, {
+	async function fetchList({path, query}) {
+		const response = await doRequest(`${url}/${path}/query`, {
 			method: 'POST',
 			body: JSON.stringify(query),
 			headers: {
 				'Content-type': 'application/json'
 			}
 		});
+
+		if (response.status === HttpStatus.FORBIDDEN || response.status === HttpStatus.UNAUTHORIZED) {
+			return fetchAuthenticateList({path, query});
+		}
+
 		return response;
 	}
 
-	async function fetchAuthenticate({PATH}) {
-		const response = await doRequest(PATH, {
-			headers: {
-				Accept: 'application/json'
-			}
-		});
-
-		if (response.status === HttpStatus.OK) {
-			return new ApiError(response.status);
-		}
-	}
-
-	async function fetchAuthenticateList({PATH, query}) {
-		const response = await doRequest(PATH, {
+	async function fetchAuthenticateList({path, query}) {
+		const response = await doRequest(`${url}/${path}/query`, {
 			method: 'POST',
 			body: JSON.stringify(query),
 			headers: {
@@ -207,8 +130,8 @@ export function createApiClient({url, username, password}) {
 		return response;
 	}
 
-	async function updateRequest({payload, PATH}) {
-		const response = await doRequest(PATH, {
+	async function update({path, payload}) {
+		const response = await doRequest(`${url}/${path}`, {
 			method: 'PUT',
 			body: JSON.stringify(payload),
 			headers: {
