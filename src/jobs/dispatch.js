@@ -220,13 +220,13 @@ export default function (agenda) {
 	}
 
 	async function createResource(request, type, subtype) {
-		const {publishers, publications} = client.requests;
+		const {update} = client.requests;
 		switch (type) {
 			case 'publishers':
-				await publishers.update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
 				break;
 			case 'publications':
-				await publications.update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
 				break;
 
 			default:
