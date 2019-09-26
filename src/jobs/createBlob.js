@@ -35,7 +35,6 @@ import {
 	JOB_BACKGROUND_PROCESSING_PROCESSED,
 	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
 	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
-	JOB_BIBLIOGRAPHIC_METADATA_PROCESSED,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME
@@ -70,27 +69,13 @@ export default function (agenda) {
 			await processRequest({
 				client, processCallback,
 				query: {queries: [{query: {metadataReference: state}}], offset: null},
-				messageCallback: count => `${count} requests are ${state}`
+				messageCallback: count => `${count} requests are ${state}`,
+				state: state
 			});
 		}
 	}
 
-	async function processCallback(requests) {
-		await Promise.all(requests.map(async request => {
-			await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS);
-			
-		}));
-
-		async function setBackground(request, state) {
-			console.log(state);
-			const payload = {...request, metadataReference: state};
-			const {publications} = client;
-			await publications.update({path: `publications/isbn-ismn/${request.id}`, payload: payload});
-			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-		}
-	}
-
-	async function processRequest({client, processCallback, messageCallback, query, filter = () => true}) {
+	async function processRequest({client, processCallback, messageCallback, query, state, filter = () => true}) {
 		try {
 			const {publications} = client;
 			const response = await publications.fetchList({path: 'publications/isbn-ismn', query: query});
@@ -102,7 +87,7 @@ export default function (agenda) {
 			if (res.results) {
 				const filteredRequests = res.results.filter(filter);
 				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests));
+				pendingProcessors.push(processCallback(filteredRequests, state));
 			}
 
 			if (messageCallback) {
@@ -112,6 +97,37 @@ export default function (agenda) {
 			return pendingProcessors;
 		} catch (err) {
 			return err;
+		}
+	}
+
+	async function processCallback(requests, state) {
+		switch (state) {
+			case JOB_BACKGROUND_PROCESSING_PENDING:
+				await Promise.all(requests.map(async request => {
+				// ==> create a new blob in Melinda's record import system
+					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS);
+				// ==> Set metadataReference.id to the ID o the blob that was created
+				}));
+				return;
+
+			case JOB_BACKGROUND_PROCESSING_IN_PROGRESS:
+				await Promise.all(requests.map(async request => {
+				// ==> Retrieve the blob metadata from Melinda's record import system
+					await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED);
+					// ==> If blob state if PROCESSED
+					// ==> Set metadataReference.id to the blob's processingInfo.importResullts[0].metadata.id
+				}));
+				return;
+
+			default:
+				return null;
+		}
+
+		async function setBackground(request, state) {
+			const payload = {...request, metadataReference: state};
+			const {publications} = client;
+			await publications.update({path: `publications/isbn-ismn/${request.id}`, payload: payload});
+			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 		}
 	}
 }
