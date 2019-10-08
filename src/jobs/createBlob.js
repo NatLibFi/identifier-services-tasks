@@ -28,8 +28,10 @@
 
 import {Utils} from '@natlibfi/melinda-commons';
 import {createApiClient} from '../api-client';
+import {createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
 import {
 	API_URL,
+	MELINDA_URL,
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
 	JOB_BACKGROUND_PROCESSING_PROCESSED,
@@ -37,7 +39,10 @@ import {
 	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
-	API_USERNAME
+	API_USERNAME,
+	MELINDA_USERNAME,
+	MELINDA_PROFILE,
+	MELINDA_PASSWORD
 } from '../config';
 
 const {createLogger} = Utils;
@@ -47,6 +52,11 @@ export default function (agenda) {
 
 	const client = createApiClient({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
+		userAgent: API_CLIENT_USER_AGENT
+	});
+
+	const melindaClient = melindaCreateApiClient({
+		url: MELINDA_URL, username: MELINDA_USERNAME, password: MELINDA_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
@@ -68,7 +78,7 @@ export default function (agenda) {
 		async function getRequests() {
 			await processRequest({
 				client, processCallback,
-				query: {queries: [{query: {metadataReference: state}}], offset: null},
+				query: {queries: [{query: {metadataReference: {state: state}}}], offset: null},
 				messageCallback: count => `${count} requests are ${state}`,
 				state: state
 			});
@@ -104,18 +114,28 @@ export default function (agenda) {
 		switch (state) {
 			case JOB_BACKGROUND_PROCESSING_PENDING:
 				await Promise.all(requests.map(async request => {
-				// ==> create a new blob in Melinda's record import system
-					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS);
-				// ==> Set metadataReference.id to the ID o the blob that was created
+				// Create a new blob in Melinda's record import system
+					const blobId = await melindaClient.createBlob({
+						blob: JSON.stringify(requests),
+						type: 'application/json',
+						profile: MELINDA_PROFILE
+					});
+					logger.log('info', `Created new blob ${blobId}`);
+					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId);
 				}));
 				return;
 
 			case JOB_BACKGROUND_PROCESSING_IN_PROGRESS:
 				await Promise.all(requests.map(async request => {
-				// ==> Retrieve the blob metadata from Melinda's record import system
-					await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED);
-					// ==> If blob state if PROCESSED
-					// ==> Set metadataReference.id to the blob's processingInfo.importResullts[0].metadata.id
+				// // ==> Retrieve the blob metadata from Melinda's record import system
+					const blobId = request.metadataReference.id;
+					const response = await melindaClient.getBlobs();
+					// const response = await melindaClient.getBlobMetadata({id: blobId});
+					console.log(response);
+				// 	if (response.state === 'PROCESSED') {
+				// 		const newId = response.processingInfo.cd[0].metadata.id;
+				// 		await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
+				// 	}
 				}));
 				return;
 
@@ -123,8 +143,8 @@ export default function (agenda) {
 				return null;
 		}
 
-		async function setBackground(request, state) {
-			const payload = {...request, metadataReference: state};
+		async function setBackground(request, state, blobId) {
+			const payload = {...request, metadataReference: {state: state, id: blobId && blobId}};
 			const {publications} = client;
 			await publications.update({path: `publications/isbn-ismn/${request.id}`, payload: payload});
 			logger.log('info', `Background processing State changed to ${state} for${request.id}`);

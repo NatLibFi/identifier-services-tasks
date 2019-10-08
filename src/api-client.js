@@ -37,6 +37,10 @@ export function createApiClient({url, username, password}) {
 	let authHeader;
 
 	return {
+		users: {
+			create,
+			update
+		},
 		publishers: {
 			create,
 			update,

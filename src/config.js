@@ -35,6 +35,7 @@ export const TZ = readEnvironmentVariable('TZ', {defaultValue: ''});
 export const MONGO_URI = readEnvironmentVariable('MONGO_URI', {defaultValue: 'mongodb://127.0.0.1/db'});
 
 export const API_URL = readEnvironmentVariable('API_URL', {defaultValue: 'http://localhost:8081'});
+export const MELINDA_URL = readEnvironmentVariable('MELINDA_URL');
 
 export const SMTP_URL = readEnvironmentVariable('SMTP_URL');
 
@@ -43,12 +44,21 @@ export const API_USERNAME = readEnvironmentVariable('API_USERNAME');
 export const API_PASSWORD = readEnvironmentVariable('API_PASSWORD');
 export const API_EMAIL = readEnvironmentVariable('API_EMAIL');
 
+export const MELINDA_USERNAME = readEnvironmentVariable('MELINDA_USERNAME');
+export const MELINDA_PROFILE = readEnvironmentVariable('MELINDA_PROFILE');
+export const MELINDA_PASSWORD = readEnvironmentVariable('MELINDA_PASSWORD');
+
 export const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_ACCEPTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_ACCEPTED', {defaultValue: '10 seconds'});
 export const JOB_FREQ_PENDING = readEnvironmentVariable('JOB_FREQ_PENDING', {defaultValue: '10 seconds'});
 export const JOB_FREQ_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_IN_PROGRESS', {defaultValue: '10 seconds'});
 export const JOB_FREQ_PROCESSED = readEnvironmentVariable('JOB_FREQ_PROCESSED', {defaultValue: '10 seconds'});
+
+export const JOB_USER_REQUEST_STATE_NEW = 'JOB_USER_REQUEST_STATE_NEW';
+export const JOB_USER_REQUEST_STATE_IN_PROGRESS = 'JOB_USER_REQUEST_STATE_IN_PROGRESS';
+export const JOB_USER_REQUEST_STATE_REJECTED = 'JOB_USER_REQUEST_STATE_REJECTED';
+export const JOB_USER_REQUEST_STATE_ACCEPTED = 'JOB_USER_REQUEST_STATE_ACCEPTED';
 
 export const JOB_PUBLISHER_REQUEST_STATE_NEW = 'JOB_PUBLISHER_REQUEST_STATE_NEW';
 export const JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS = 'JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS';

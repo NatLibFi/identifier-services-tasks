@@ -37,6 +37,7 @@
     "@babel/core": "^7.2.0",
     "@natlibfi/identifier-services-commons": "git+https://github.com/natlibfi/identifier-services-commons.git#feature/apiError",
     "@natlibfi/melinda-commons": "^5.0.0",
+    "@natlibfi/melinda-record-import-commons": "^6.0.2",
     "agenda": "^2.0.2",
     "nodemailer": "^6.2.1",
     "string-template-js": "^1.0.3"

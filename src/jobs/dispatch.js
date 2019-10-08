@@ -33,6 +33,9 @@ import nodemailer from 'nodemailer';
 import stringTemplate from 'string-template-js';
 import {
 	API_URL,
+	JOB_USER_REQUEST_STATE_NEW,
+	JOB_USER_REQUEST_STATE_ACCEPTED,
+	JOB_USER_REQUEST_STATE_REJECTED,
 	JOB_PUBLISHER_REQUEST_STATE_NEW,
 	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
@@ -57,6 +60,16 @@ export default function (agenda) {
 	const client = createApiClient({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
+	});
+
+	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'new', 'users');
+	});
+	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'accepted', 'users');
+	});
+	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'rejected', 'users');
 	});
 
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
@@ -111,18 +124,27 @@ export default function (agenda) {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
-					await sendEmail(`${type} request new`);
+					if (type !== 'users') {
+						await sendEmail(`${type} request new`);
+					}
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'rejected':
-					await sendEmail(`${type} request rejected`, request);
+					if (type !== 'users') {
+						await sendEmail(`${type} request rejected`, request);
+					}
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'accepted':
 					await createResource(request, type, subtype);
-					await sendEmail(`${type} request accepted`);
+					if (type !== 'users') {
+						await sendEmail(`${type} request accepted`);
+					}
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -135,6 +157,9 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			const {requests} = client;
 			switch (type) {
+				case 'users':
+					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
+					break;
 				case 'publishers':
 					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
 					break;
@@ -156,6 +181,10 @@ export default function (agenda) {
 			let res;
 			const {requests} = client;
 			switch (type) {
+				case 'users':
+					response = await requests.fetchList({path: `requests/${type}`, query: query});
+					res = await response.json();
+					break;
 				case 'publishers':
 					response = await requests.fetchList({path: `requests/${type}`, query: query});
 					res = await response.json();
@@ -215,18 +244,24 @@ export default function (agenda) {
 				console.log(error);
 			}
 
-			console.log(info.response);
+			logger.log('info', `${info.response}`);
 		});
 	}
 
 	async function createResource(request, type, subtype) {
-		const {publishers, publications} = client.requests;
+		const {update} = client.requests;
 		switch (type) {
+			case 'users':
+				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type} requests updated for ${request.id} `);
+				break;
 			case 'publishers':
-				await publishers.update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publications':
-				await publications.update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
 				break;
 
 			default:
@@ -251,23 +286,35 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, notes, publisher, lastUpdated, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, notes, publisher, lastUpdated, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
 		return formatRequest;
 	}
 
+	function formatUsersRequest(request) {
+		console.log(request);
+		const formatRequest = {...request};
+		return formatRequest;
+	}
+
 	async function create(request, type, subtype) {
 		let response;
-		const {publishers, publications} = client;
+		const {users, publishers, publications} = client;
 		switch (type) {
+			case 'users':
+				response = await users.create({path: type, payload: formatUsersRequest(request)});
+				logger.log('info', `Resource for ${type} has been created`);
+				break;
 			case 'publishers':
 				response = await publishers.create({path: type, payload: formatPublisherRequest(request)});
+				logger.log('info', `Resource for ${type} has been created`);
 				break;
 
 			case 'publications':
 				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(request)});
+				logger.log('info', `Resource for ${type}${subtype} has been created`);
 				break;
 
 			default:
