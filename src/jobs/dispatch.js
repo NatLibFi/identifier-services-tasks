@@ -294,8 +294,8 @@ export default function (agenda) {
 	}
 
 	function formatUsersRequest(request) {
-		console.log(request);
-		const formatRequest = {...request};
+		const {backgroundProcessingState, state, lastUpdated, ...rest} = {...request};
+		const formatRequest = {...rest};
 		return formatRequest;
 	}
 
