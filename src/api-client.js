@@ -108,7 +108,6 @@ export function createApiClient({url, username, password}) {
 	}
 
 	async function fetchList({path, query}) {
-		console.log(`${url}/${path}/query`);
 		const response = await doRequest(`${url}/${path}/query`, {
 			method: 'POST',
 			body: JSON.stringify(query),

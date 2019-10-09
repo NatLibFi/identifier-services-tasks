@@ -140,7 +140,13 @@ export default function (agenda) {
 					break;
 
 				case 'accepted':
-					await createResource(request, type, subtype);
+					try {
+						await createResource(request, type, subtype);
+					} catch (error) {
+						logger.log('error', `${error}`);
+						break;
+					}
+
 					if (type !== 'users') {
 						await sendEmail(`${type} request accepted`);
 					}
@@ -241,7 +247,7 @@ export default function (agenda) {
 			text: newBody
 		}, (error, info) => {
 			if (error) {
-				console.log(error);
+				logger.log('error', `${error}`);
 			}
 
 			logger.log('info', `${info.response}`);
