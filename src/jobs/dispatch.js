@@ -133,7 +133,7 @@ export default function (agenda) {
 
 				case 'rejected':
 					if (type !== 'users') {
-						await sendEmail(`${type} request rejected`, request);
+						await sendEmail(`${type} request rejected`, request.rejectionReason);
 					}
 
 					await setBackground(request, type, subtype, 'processed');
@@ -223,14 +223,14 @@ export default function (agenda) {
 		}
 	}
 
-	async function sendEmail(name, request) {
+	async function sendEmail(name, args) {
 		const parseUrl = new URL(SMTP_URL);
 		const templateCache = {};
 		const query = {queries: [{query: {name: name}}], offset: null};
 		const messageTemplate = await getTemplate(query, templateCache);
 		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
-		const newBody = request ?
-			stringTemplate.replace(body, {rejectionReason: request.rejectionReason}) :
+		const newBody = args ?
+			stringTemplate.replace(body, {args: args}) :
 			stringTemplate.replace(body);
 
 		let transporter = nodemailer.createTransport({
@@ -311,6 +311,7 @@ export default function (agenda) {
 		switch (type) {
 			case 'users':
 				response = await users.create({path: type, payload: formatUsersRequest(request)});
+				sendEmail('change password', `${API_URL}/${type}/${response}/password`);
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
 			case 'publishers':
