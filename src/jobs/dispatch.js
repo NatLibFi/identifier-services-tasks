@@ -132,10 +132,7 @@ export default function (agenda) {
 					break;
 
 				case 'rejected':
-					if (type !== 'users') {
-						await sendEmail(`${type} request rejected`, request.rejectionReason);
-					}
-
+					await sendEmail(`${type} request rejected`, request.rejectionReason);
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -230,7 +227,7 @@ export default function (agenda) {
 		const messageTemplate = await getTemplate(query, templateCache);
 		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
 		const newBody = args ?
-			stringTemplate.replace(body, {args: args}) :
+			stringTemplate.replace(body, {args: args, rejectionReason: args}) :
 			stringTemplate.replace(body);
 
 		let transporter = nodemailer.createTransport({
