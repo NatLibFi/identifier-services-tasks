@@ -38,6 +38,7 @@ export function createApiClient({url, username, password}) {
 
 	return {
 		users: {
+			read,
 			create,
 			update
 		},
@@ -105,6 +106,19 @@ export function createApiClient({url, username, password}) {
 		}
 
 		throw new ApiError(response.status);
+	}
+
+	async function read(path) {
+		const response = await doRequest(`${url}/${path}`, {
+			headers: {
+				Accept: 'application/json'
+			}
+		});
+
+		if (response.status === HttpStatus.OK) {
+			const result = await response.json();
+			return result;
+		}
 	}
 
 	async function fetchList({path, query}) {

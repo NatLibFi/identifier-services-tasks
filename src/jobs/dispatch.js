@@ -32,6 +32,7 @@ import {URL} from 'url';
 import nodemailer from 'nodemailer';
 import stringTemplate from 'string-template-js';
 import {
+	UI_URL,
 	API_URL,
 	JOB_USER_REQUEST_STATE_NEW,
 	JOB_USER_REQUEST_STATE_ACCEPTED,
@@ -227,7 +228,7 @@ export default function (agenda) {
 		const messageTemplate = await getTemplate(query, templateCache);
 		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
 		const newBody = args ?
-			stringTemplate.replace(body, {args: args, rejectionReason: args}) :
+			stringTemplate.replace(body, {link: args.link, rejectionReason: args, username: args.id, password: args.password}) :
 			stringTemplate.replace(body);
 
 		let transporter = nodemailer.createTransport({
@@ -304,11 +305,13 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
+		let responseId;
 		const {users, publishers, publications} = client;
 		switch (type) {
 			case 'users':
-				response = await users.create({path: type, payload: formatUsersRequest(request)});
-				sendEmail('change password', `${API_URL}/${type}/${response}/password`);
+				responseId = await users.create({path: type, payload: formatUsersRequest(request)});
+				response = await users.read(`${type}/${responseId}`);
+				sendEmail('change password', {link: `${UI_URL}/${type}/${response.displayName}/${Date.now()}/passwordreset`, ...response});
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
 			case 'publishers':
