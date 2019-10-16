@@ -39,6 +39,7 @@ export const UI_URL = readEnvironmentVariable('UI_URL', {defaultValue: 'http://l
 export const MELINDA_URL = readEnvironmentVariable('MELINDA_URL');
 
 export const SMTP_URL = readEnvironmentVariable('SMTP_URL');
+export const PRIVATE_KEY_URL = readEnvironmentVariable('PRIVATE_KEY_URL');
 
 export const API_CLIENT_USER_AGENT = readEnvironmentVariable('API_CLIENT_USER_AGENT', {defaultValue: '_RECORD-IMPORT-CONTROLLER'});
 export const API_USERNAME = readEnvironmentVariable('API_USERNAME');

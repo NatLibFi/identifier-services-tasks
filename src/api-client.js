@@ -100,7 +100,7 @@ export function createApiClient({url, username, password}) {
 			}
 
 		});
-		if (response.status === HttpStatus.CREATED) {
+		if (response.status === HttpStatus.CREATED || response.status === HttpStatus.OK) {
 			const result = await response.json();
 			return result;
 		}

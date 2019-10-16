@@ -31,6 +31,8 @@ import {createApiClient} from '../api-client';
 import {URL} from 'url';
 import nodemailer from 'nodemailer';
 import stringTemplate from 'string-template-js';
+import fs from 'fs';
+import * as jwtEncrypt from 'jwt-token-encrypt';
 import {
 	UI_URL,
 	API_URL,
@@ -50,6 +52,7 @@ import {
 	API_PASSWORD,
 	API_USERNAME,
 	SMTP_URL,
+	PRIVATE_KEY_URL,
 	API_EMAIL
 } from '../config';
 
@@ -237,7 +240,7 @@ export default function (agenda) {
 			secure: false
 		});
 
-		await transporter.sendMail({
+		const response = await transporter.sendMail({
 			from: 'test@test.com',
 			to: API_EMAIL,
 			replyTo: 'test@test.com',
@@ -250,6 +253,7 @@ export default function (agenda) {
 
 			logger.log('info', `${info.response}`);
 		});
+		return response;
 	}
 
 	async function createResource(request, type, subtype) {
@@ -311,7 +315,7 @@ export default function (agenda) {
 			case 'users':
 				responseId = await users.create({path: type, payload: formatUsersRequest(request)});
 				response = await users.read(`${type}/${responseId}`);
-				sendEmail('change password', {link: `${UI_URL}/${type}/${response.displayName}/${Date.now()}/passwordreset`, ...response});
+				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
 			case 'publishers':
@@ -328,7 +332,8 @@ export default function (agenda) {
 				break;
 		}
 
-		const newRequest = {...request, createdResource: response};
+		delete response._id;
+		const newRequest = {...request, ...response};
 		return newRequest;
 	}
 
@@ -340,5 +345,33 @@ export default function (agenda) {
 
 		cache[key] = await client.templates.getTemplate(query);
 		return cache[key];
+	}
+
+	async function createLinkAndSendEmail(type, request, response) {
+		const res = fs.readFileSync(`${PRIVATE_KEY_URL}`, 'utf-8');
+		const encryption = JSON.parse(res);
+		console.log(encryption[0]);
+
+		const jwtDetails = {
+			secret: encryption[0].key,
+			expiresIn: '24h'
+		};
+		const publicData = {
+			role: type
+		};
+		const privateData = {
+			email: request.email,
+			id: request.id
+		};
+		const token = await jwtEncrypt.generateJWT(
+			jwtDetails,
+			publicData,
+			encryption[0],
+			privateData
+		);
+
+		const link = `${UI_URL}/${type}/passwordReset/${token}`;
+		const result = await sendEmail('change password', {link: link, ...response});
+		return result;
 	}
 }
