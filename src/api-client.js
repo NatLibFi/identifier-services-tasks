@@ -26,7 +26,7 @@
  *
  */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import HttpStatus from 'http-status';
 import fetch from 'node-fetch';
 import {ApiError} from '@natlibfi/identifier-services-commons';

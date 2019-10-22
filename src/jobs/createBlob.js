@@ -26,7 +26,7 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import {createApiClient} from '../api-client';
 import {createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
 import {
@@ -34,7 +34,7 @@ import {
 	MELINDA_URL,
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-	JOB_BACKGROUND_PROCESSING_PROCESSED,
+	// JOB_BACKGROUND_PROCESSING_PROCESSED,
 	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
 	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
 	API_CLIENT_USER_AGENT,
@@ -126,17 +126,17 @@ export default function (agenda) {
 				return;
 
 			case JOB_BACKGROUND_PROCESSING_IN_PROGRESS:
-				await Promise.all(requests.map(async request => {
+				// Await Promise.all(requests.map(async request => {
 				// // ==> Retrieve the blob metadata from Melinda's record import system
-					const blobId = request.metadataReference.id;
-					const response = await melindaClient.getBlobs();
-					// const response = await melindaClient.getBlobMetadata({id: blobId});
-					console.log(response);
+				// 	const blobId = request.metadataReference.id;
+				// 	const response = await melindaClient.getBlobs();
+				// 	const response = await melindaClient.getBlobMetadata({id: blobId});
+				// 	console.log(response);
 				// 	if (response.state === 'PROCESSED') {
 				// 		const newId = response.processingInfo.cd[0].metadata.id;
 				// 		await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
 				// 	}
-				}));
+				// }));
 				return;
 
 			default:

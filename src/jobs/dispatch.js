@@ -26,16 +26,16 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
-import {createApiClient} from '../api-client';
-import {URL} from 'url';
-import nodemailer from 'nodemailer';
-import stringTemplate from 'string-template-js';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
 import * as jwtEncrypt from 'jwt-token-encrypt';
+
+import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
 	UI_URL,
 	API_URL,
+	SMTP_URL,
+	API_EMAIL,
 	JOB_USER_REQUEST_STATE_NEW,
 	JOB_USER_REQUEST_STATE_ACCEPTED,
 	JOB_USER_REQUEST_STATE_REJECTED,
@@ -51,12 +51,10 @@ import {
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
-	SMTP_URL,
-	PRIVATE_KEY_URL,
-	API_EMAIL
+	PRIVATE_KEY_URL
 } from '../config';
 
-const {createLogger} = Utils;
+const {createLogger, sendEmail} = Utils;
 
 export default function (agenda) {
 	const logger = createLogger();
@@ -129,14 +127,14 @@ export default function (agenda) {
 			switch (request.state) {
 				case 'new':
 					if (type !== 'users') {
-						await sendEmail(`${type} request new`);
+						await sendEmail({name: `${type} request new`});
 					}
 
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'rejected':
-					await sendEmail(`${type} request rejected`, request.rejectionReason);
+					await sendEmail({name: `${type} request rejected`, args: request.rejectionReason});
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -149,7 +147,7 @@ export default function (agenda) {
 					}
 
 					if (type !== 'users') {
-						await sendEmail(`${type} request accepted`);
+						await sendEmail({name: `${type} request accepted`});
 					}
 
 					await setBackground(request, type, subtype, 'processed');
@@ -222,38 +220,6 @@ export default function (agenda) {
 		} catch (err) {
 			return err;
 		}
-	}
-
-	async function sendEmail(name, args) {
-		const parseUrl = new URL(SMTP_URL);
-		const templateCache = {};
-		const query = {queries: [{query: {name: name}}], offset: null};
-		const messageTemplate = await getTemplate(query, templateCache);
-		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
-		const newBody = args ?
-			stringTemplate.replace(body, {link: args.link, rejectionReason: args, username: args.id, password: args.password}) :
-			stringTemplate.replace(body);
-
-		let transporter = nodemailer.createTransport({
-			host: parseUrl.hostname,
-			port: parseUrl.port,
-			secure: false
-		});
-
-		const response = await transporter.sendMail({
-			from: 'test@test.com',
-			to: API_EMAIL,
-			replyTo: 'test@test.com',
-			subject: messageTemplate.subject,
-			text: newBody
-		}, (error, info) => {
-			if (error) {
-				logger.log('error', `${error}`);
-			}
-
-			logger.log('info', `${info.response}`);
-		});
-		return response;
 	}
 
 	async function createResource(request, type, subtype) {
@@ -337,23 +303,12 @@ export default function (agenda) {
 		return newRequest;
 	}
 
-	async function getTemplate(query, cache) {
-		const key = JSON.stringify(query);
-		if (key in cache) {
-			return cache[key];
-		}
-
-		cache[key] = await client.templates.getTemplate(query);
-		return cache[key];
-	}
-
 	async function createLinkAndSendEmail(type, request, response) {
 		const res = fs.readFileSync(`${PRIVATE_KEY_URL}`, 'utf-8');
 		const encryption = JSON.parse(res);
-		console.log(encryption[0]);
 
 		const jwtDetails = {
-			secret: encryption[0].key,
+			secret: 'this is a secret',
 			expiresIn: '24h'
 		};
 		const publicData = {
@@ -371,7 +326,23 @@ export default function (agenda) {
 		);
 
 		const link = `${UI_URL}/${type}/passwordReset/${token}`;
-		const result = await sendEmail('change password', {link: link, ...response});
+		const result = await sendEmail({
+			name: 'change password',
+			args: {link: link, ...response},
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: API_EMAIL
+		});
 		return result;
+	}
+
+	async function getTemplate(query, cache) {
+		const key = JSON.stringify(query);
+		if (key in cache) {
+			return cache[key];
+		}
+
+		cache[key] = await client.templates.getTemplate(query);
+		return cache[key];
 	}
 }

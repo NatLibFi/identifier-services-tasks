@@ -26,7 +26,7 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
 import {createRequestJobs, blobinMelinda} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';

@@ -26,7 +26,7 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 
 const {readEnvironmentVariable} = Utils;
 
