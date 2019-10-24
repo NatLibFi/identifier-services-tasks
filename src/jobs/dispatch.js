@@ -127,14 +127,25 @@ export default function (agenda) {
 			switch (request.state) {
 				case 'new':
 					if (type !== 'users') {
-						await sendEmail({name: `${type} request new`});
+						await sendEmail({
+							name: `${type} request new`,
+							getTemplate: getTemplate,
+							SMTP_URL: SMTP_URL,
+							API_EMAIL: API_EMAIL
+						});
 					}
 
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'rejected':
-					await sendEmail({name: `${type} request rejected`, args: request.rejectionReason});
+					await sendEmail({
+						name: `${type} request rejected`,
+						args: request.rejectionReason,
+						getTemplate: getTemplate,
+						SMTP_URL: SMTP_URL,
+						API_EMAIL: API_EMAIL
+					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -147,7 +158,12 @@ export default function (agenda) {
 					}
 
 					if (type !== 'users') {
-						await sendEmail({name: `${type} request accepted`});
+						await sendEmail({
+							name: `${type} request accepted`,
+							getTemplate: getTemplate,
+							SMTP_URL: SMTP_URL,
+							API_EMAIL: API_EMAIL
+						});
 					}
 
 					await setBackground(request, type, subtype, 'processed');
