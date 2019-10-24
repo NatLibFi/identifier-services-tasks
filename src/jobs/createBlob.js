@@ -27,8 +27,7 @@
 */
 
 import {Utils} from '@natlibfi/identifier-services-commons';
-import {createApiClient} from '../api-client';
-import {createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
+import {createApiClient, createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
 import {
 	API_URL,
 	MELINDA_URL,
