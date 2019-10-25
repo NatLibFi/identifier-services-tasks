@@ -30,7 +30,7 @@ import {Utils} from '@natlibfi/identifier-services-commons';
 import {createApiClient, createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
 import {
 	API_URL,
-	MELINDA_URL,
+	MELINDA_RECORD_IMPORT_URL,
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
 	// JOB_BACKGROUND_PROCESSING_PROCESSED,
@@ -39,9 +39,9 @@ import {
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
-	MELINDA_USERNAME,
-	MELINDA_PROFILE,
-	MELINDA_PASSWORD
+	MELINDA_RECORD_IMPORT_USERNAME,
+	MELINDA_RECORD_IMPORT_PROFILE,
+	MELINDA_RECORD_IMPORT_PASSWORD
 } from '../config';
 
 const {createLogger} = Utils;
@@ -55,7 +55,7 @@ export default function (agenda) {
 	});
 
 	const melindaClient = melindaCreateApiClient({
-		url: MELINDA_URL, username: MELINDA_USERNAME, password: MELINDA_PASSWORD,
+		url: MELINDA_RECORD_IMPORT_URL, username: MELINDA_RECORD_IMPORT_USERNAME, password: MELINDA_RECORD_IMPORT_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
@@ -117,7 +117,7 @@ export default function (agenda) {
 					const blobId = await melindaClient.createBlob({
 						blob: JSON.stringify(requests),
 						type: 'application/json',
-						profile: MELINDA_PROFILE
+						profile: MELINDA_RECORD_IMPORT_PROFILE
 					});
 					logger.log('info', `Created new blob ${blobId}`);
 					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId);

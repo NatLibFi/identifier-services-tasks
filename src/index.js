@@ -28,7 +28,7 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
-import {createRequestJobs, blobinMelinda} from './jobs';
+import {createRequestJobs, createMelindaJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
@@ -81,7 +81,7 @@ async function run() {
 		const opts = TZ ? {timezone: TZ} : {};
 
 		createRequestJobs(agenda);
-		blobinMelinda(agenda);
+		createMelindaJobs(agenda);
 
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);

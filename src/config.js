@@ -36,7 +36,7 @@ export const MONGO_URI = readEnvironmentVariable('MONGO_URI', {defaultValue: 'mo
 
 export const API_URL = readEnvironmentVariable('API_URL', {defaultValue: 'http://localhost:8081'});
 export const UI_URL = readEnvironmentVariable('UI_URL', {defaultValue: 'http://localhost:8080'});
-export const MELINDA_URL = readEnvironmentVariable('MELINDA_URL');
+export const MELINDA_RECORD_IMPORT_URL = readEnvironmentVariable('MELINDA_RECORD_IMPORT_URL');
 
 export const SMTP_URL = readEnvironmentVariable('SMTP_URL');
 export const PRIVATE_KEY_URL = readEnvironmentVariable('PRIVATE_KEY_URL');
@@ -46,9 +46,9 @@ export const API_USERNAME = readEnvironmentVariable('API_USERNAME');
 export const API_PASSWORD = readEnvironmentVariable('API_PASSWORD');
 export const API_EMAIL = readEnvironmentVariable('API_EMAIL');
 
-export const MELINDA_USERNAME = readEnvironmentVariable('MELINDA_USERNAME');
-export const MELINDA_PROFILE = readEnvironmentVariable('MELINDA_PROFILE');
-export const MELINDA_PASSWORD = readEnvironmentVariable('MELINDA_PASSWORD');
+export const MELINDA_RECORD_IMPORT_USERNAME = readEnvironmentVariable('MELINDA_RECORD_IMPORT_USERNAME');
+export const MELINDA_RECORD_IMPORT_PROFILE = readEnvironmentVariable('MELINDA_RECORD_IMPORT_PROFILE');
+export const MELINDA_RECORD_IMPORT_PASSWORD = readEnvironmentVariable('MELINDA_RECORD_IMPORT_PASSWORD');
 
 export const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
