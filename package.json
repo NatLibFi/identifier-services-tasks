@@ -36,10 +36,11 @@
   "dependencies": {
     "@babel/core": "^7.2.0",
     "@natlibfi/identifier-services-commons": "git+https://github.com/natlibfi/identifier-services-commons.git#feature/apiError",
-    "@natlibfi/melinda-commons": "^5.0.0",
+    "@natlibfi/melinda-commons": "^7.0.1",
+    "@natlibfi/melinda-record-import-commons": "^7.0.1",
     "agenda": "^2.0.2",
-    "nodemailer": "^6.2.1",
-    "string-template-js": "^1.0.3"
+    "jwt-token-encrypt": "^1.0.4",
+    "mongodb": "^3.3.3"
   },
   "devDependencies": {
     "@babel/cli": "^7.2.0",
@@ -50,18 +51,19 @@
     "@natlibfi/fixura": "^1.0.0",
     "@natlibfi/fixura-mongo": "^1.0.0",
     "babel-eslint": "^10.0.1",
-    "babel-plugin-rewire": "^1.2.0",
     "babel-plugin-istanbul": "^5.1.0",
-    "cross-env": "^5.2.0",
-    "eslint": "^5.9.0",
+    "babel-plugin-rewire": "^1.2.0",
+    "cross-env": "^6.0.3",
+    "eslint": "^6.5.1",
     "eslint-config-xo": ">=0.25.0 <1.0.0",
     "eslint-plugin-import": "^2.14.0",
+    "fs": "0.0.2",
     "istanbul": ">=0.4.5 <1.0.0",
     "mocha": "^6.0.2",
-    "nock": "^10.0.3",
+    "nock": "^11.5.0",
     "nodemon": "^1.18.10",
     "npm-check": "^5.9.0",
-    "nyc": "^13.1.0"
+    "nyc": "^14.1.1"
   },
   "eslintConfig": {
     "parser": "babel-eslint",

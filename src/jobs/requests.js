@@ -26,13 +26,19 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
-import {createApiClient} from '../api-client';
-import {URL} from 'url';
-import nodemailer from 'nodemailer';
-import stringTemplate from 'string-template-js';
+import {Utils} from '@natlibfi/identifier-services-commons';
+import fs from 'fs';
+import * as jwtEncrypt from 'jwt-token-encrypt';
+
+import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
+	UI_URL,
 	API_URL,
+	SMTP_URL,
+	API_EMAIL,
+	JOB_USER_REQUEST_STATE_NEW,
+	JOB_USER_REQUEST_STATE_ACCEPTED,
+	JOB_USER_REQUEST_STATE_REJECTED,
 	JOB_PUBLISHER_REQUEST_STATE_NEW,
 	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
@@ -45,11 +51,10 @@ import {
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
-	SMTP_URL,
-	API_EMAIL
+	PRIVATE_KEY_URL
 } from '../config';
 
-const {createLogger} = Utils;
+const {createLogger, sendEmail} = Utils;
 
 export default function (agenda) {
 	const logger = createLogger();
@@ -57,6 +62,16 @@ export default function (agenda) {
 	const client = createApiClient({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
+	});
+
+	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'new', 'users');
+	});
+	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'accepted', 'users');
+	});
+	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
+		await request(job, done, 'rejected', 'users');
 	});
 
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
@@ -111,18 +126,46 @@ export default function (agenda) {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
-					await sendEmail(`${type} request new`);
+					if (type !== 'users') {
+						await sendEmail({
+							name: `${type} request new`,
+							getTemplate: getTemplate,
+							SMTP_URL: SMTP_URL,
+							API_EMAIL: API_EMAIL
+						});
+					}
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'rejected':
-					await sendEmail(`${type} request rejected`, request);
+					await sendEmail({
+						name: `${type} request rejected`,
+						args: request.rejectionReason,
+						getTemplate: getTemplate,
+						SMTP_URL: SMTP_URL,
+						API_EMAIL: API_EMAIL
+					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				case 'accepted':
-					await createResource(request, type, subtype);
-					await sendEmail(`${type} request accepted`);
+					try {
+						await createResource(request, type, subtype);
+					} catch (error) {
+						logger.log('error', `${error}`);
+						break;
+					}
+
+					if (type !== 'users') {
+						await sendEmail({
+							name: `${type} request accepted`,
+							getTemplate: getTemplate,
+							SMTP_URL: SMTP_URL,
+							API_EMAIL: API_EMAIL
+						});
+					}
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -135,6 +178,9 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			const {requests} = client;
 			switch (type) {
+				case 'users':
+					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
+					break;
 				case 'publishers':
 					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
 					break;
@@ -156,6 +202,10 @@ export default function (agenda) {
 			let res;
 			const {requests} = client;
 			switch (type) {
+				case 'users':
+					response = await requests.fetchList({path: `requests/${type}`, query: query});
+					res = await response.json();
+					break;
 				case 'publishers':
 					response = await requests.fetchList({path: `requests/${type}`, query: query});
 					res = await response.json();
@@ -188,45 +238,20 @@ export default function (agenda) {
 		}
 	}
 
-	async function sendEmail(name, request) {
-		const parseUrl = new URL(SMTP_URL);
-		const templateCache = {};
-		const query = {queries: [{query: {name: name}}], offset: null};
-		const messageTemplate = await getTemplate(query, templateCache);
-		let body = Buffer.from(messageTemplate.body, 'base64').toString('utf8');
-		const newBody = request ?
-			stringTemplate.replace(body, {rejectionReason: request.rejectionReason}) :
-			stringTemplate.replace(body);
-
-		let transporter = nodemailer.createTransport({
-			host: parseUrl.hostname,
-			port: parseUrl.port,
-			secure: false
-		});
-
-		await transporter.sendMail({
-			from: 'test@test.com',
-			to: API_EMAIL,
-			replyTo: 'test@test.com',
-			subject: messageTemplate.subject,
-			text: newBody
-		}, (error, info) => {
-			if (error) {
-				console.log(error);
-			}
-
-			console.log(info.response);
-		});
-	}
-
 	async function createResource(request, type, subtype) {
 		const {update} = client.requests;
 		switch (type) {
+			case 'users':
+				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type} requests updated for ${request.id} `);
+				break;
 			case 'publishers':
 				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publications':
 				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
 				break;
 
 			default:
@@ -251,31 +276,80 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, notes, publisher, lastUpdated, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, notes, publisher, lastUpdated, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
 		return formatRequest;
 	}
 
+	function formatUsersRequest(request) {
+		const {backgroundProcessingState, state, lastUpdated, ...rest} = {...request};
+		const formatRequest = {...rest};
+		return formatRequest;
+	}
+
 	async function create(request, type, subtype) {
 		let response;
-		const {publishers, publications} = client;
+		let responseId;
+		const {users, publishers, publications} = client;
 		switch (type) {
+			case 'users':
+				responseId = await users.create({path: type, payload: formatUsersRequest(request)});
+				response = await users.read(`${type}/${responseId}`);
+				await createLinkAndSendEmail(type, request, response);
+				logger.log('info', `Resource for ${type} has been created`);
+				break;
 			case 'publishers':
 				response = await publishers.create({path: type, payload: formatPublisherRequest(request)});
+				logger.log('info', `Resource for ${type} has been created`);
 				break;
 
 			case 'publications':
 				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(request)});
+				logger.log('info', `Resource for ${type}${subtype} has been created`);
 				break;
 
 			default:
 				break;
 		}
 
-		const newRequest = {...request, createdResource: response};
+		delete response._id;
+		const newRequest = {...request, ...response};
 		return newRequest;
+	}
+
+	async function createLinkAndSendEmail(type, request, response) {
+		const res = fs.readFileSync(`${PRIVATE_KEY_URL}`, 'utf-8');
+		const encryption = JSON.parse(res);
+
+		const jwtDetails = {
+			secret: 'this is a secret',
+			expiresIn: '24h'
+		};
+		const publicData = {
+			role: type
+		};
+		const privateData = {
+			email: request.email,
+			id: request.id
+		};
+		const token = await jwtEncrypt.generateJWT(
+			jwtDetails,
+			publicData,
+			encryption[0],
+			privateData
+		);
+
+		const link = `${UI_URL}/${type}/passwordReset/${token}`;
+		const result = await sendEmail({
+			name: 'change password',
+			args: {link: link, ...response},
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: API_EMAIL
+		});
+		return result;
 	}
 
 	async function getTemplate(query, cache) {

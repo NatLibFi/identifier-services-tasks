@@ -26,16 +26,21 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
-import {createRequestJobs} from './jobs';
+import {createRequestJobs, createMelindaJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
 	TZ,
+	JOB_FREQ_PENDING,
+	JOB_FREQ_IN_PROGRESS,
 	JOB_FREQ_REQUEST_STATE_NEW,
 	JOB_FREQ_REQUEST_STATE_ACCEPTED,
 	JOB_FREQ_REQUEST_STATE_REJECTED,
+	JOB_USER_REQUEST_STATE_NEW,
+	JOB_USER_REQUEST_STATE_ACCEPTED,
+	JOB_USER_REQUEST_STATE_REJECTED,
 	JOB_PUBLISHER_REQUEST_STATE_NEW,
 	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
@@ -44,7 +49,9 @@ import {
 	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
-	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
+	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -74,6 +81,11 @@ async function run() {
 		const opts = TZ ? {timezone: TZ} : {};
 
 		createRequestJobs(agenda);
+		createMelindaJobs(agenda);
+
+		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_USER_REQUEST_STATE_REJECTED, undefined, opts);
 
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLISHER_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {}, opts);
@@ -86,6 +98,9 @@ async function run() {
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {}, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
+		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
 
 		agenda.start();
 	});

@@ -26,7 +26,7 @@
 *
 */
 
-import {Utils} from '@natlibfi/melinda-commons';
+import {Utils} from '@natlibfi/identifier-services-commons';
 
 const {readEnvironmentVariable} = Utils;
 
@@ -35,17 +35,32 @@ export const TZ = readEnvironmentVariable('TZ', {defaultValue: ''});
 export const MONGO_URI = readEnvironmentVariable('MONGO_URI', {defaultValue: 'mongodb://127.0.0.1/db'});
 
 export const API_URL = readEnvironmentVariable('API_URL', {defaultValue: 'http://localhost:8081'});
+export const UI_URL = readEnvironmentVariable('UI_URL', {defaultValue: 'http://localhost:8080'});
+export const MELINDA_RECORD_IMPORT_URL = readEnvironmentVariable('MELINDA_RECORD_IMPORT_URL');
 
 export const SMTP_URL = readEnvironmentVariable('SMTP_URL');
+export const PRIVATE_KEY_URL = readEnvironmentVariable('PRIVATE_KEY_URL');
 
 export const API_CLIENT_USER_AGENT = readEnvironmentVariable('API_CLIENT_USER_AGENT', {defaultValue: '_RECORD-IMPORT-CONTROLLER'});
 export const API_USERNAME = readEnvironmentVariable('API_USERNAME');
 export const API_PASSWORD = readEnvironmentVariable('API_PASSWORD');
 export const API_EMAIL = readEnvironmentVariable('API_EMAIL');
 
+export const MELINDA_RECORD_IMPORT_USERNAME = readEnvironmentVariable('MELINDA_RECORD_IMPORT_USERNAME');
+export const MELINDA_RECORD_IMPORT_PROFILE = readEnvironmentVariable('MELINDA_RECORD_IMPORT_PROFILE');
+export const MELINDA_RECORD_IMPORT_PASSWORD = readEnvironmentVariable('MELINDA_RECORD_IMPORT_PASSWORD');
+
 export const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
 export const JOB_FREQ_REQUEST_STATE_ACCEPTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_ACCEPTED', {defaultValue: '10 seconds'});
+export const JOB_FREQ_PENDING = readEnvironmentVariable('JOB_FREQ_PENDING', {defaultValue: '10 seconds'});
+export const JOB_FREQ_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_IN_PROGRESS', {defaultValue: '10 seconds'});
+export const JOB_FREQ_PROCESSED = readEnvironmentVariable('JOB_FREQ_PROCESSED', {defaultValue: '10 seconds'});
+
+export const JOB_USER_REQUEST_STATE_NEW = 'JOB_USER_REQUEST_STATE_NEW';
+export const JOB_USER_REQUEST_STATE_IN_PROGRESS = 'JOB_USER_REQUEST_STATE_IN_PROGRESS';
+export const JOB_USER_REQUEST_STATE_REJECTED = 'JOB_USER_REQUEST_STATE_REJECTED';
+export const JOB_USER_REQUEST_STATE_ACCEPTED = 'JOB_USER_REQUEST_STATE_ACCEPTED';
 
 export const JOB_PUBLISHER_REQUEST_STATE_NEW = 'JOB_PUBLISHER_REQUEST_STATE_NEW';
 export const JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS = 'JOB_PUBLISHER_REQUEST_STATE_IN_PROGRESS';
@@ -65,3 +80,6 @@ export const JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED = 'JOB_PUBLICATION_ISSN
 export const JOB_BACKGROUND_PROCESSING_PENDING = 'pending';
 export const JOB_BACKGROUND_PROCESSING_IN_PROGRESS = 'inProgress';
 export const JOB_BACKGROUND_PROCESSING_PROCESSED = 'processed';
+
+export const JOB_BIBLIOGRAPHIC_METADATA_PENDING = 'JOB_BIBLIOGRAPHIC_METADATA_PENDING';
+export const JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS = 'JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS';

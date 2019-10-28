@@ -26,4 +26,5 @@
 *
 */
 
-export {default as createRequestJobs} from './dispatch';
+export {default as createRequestJobs} from './requests';
+export {default as createMelindaJobs} from './melinda';
