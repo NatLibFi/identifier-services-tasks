@@ -28,7 +28,7 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
-import {createRequestJobs, createMelindaJobs} from './jobs';
+import {createRequestJobs, createMelindaJobs, createCheckupJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
@@ -51,7 +51,9 @@ import {
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
 	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS
+	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	REQUEST_TTL,
+	JOB_PUBLISHER_REQUEST_STATE_NEW_CHECK
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -82,6 +84,7 @@ async function run() {
 
 		createRequestJobs(agenda);
 		createMelindaJobs(agenda);
+		createCheckupJobs(agenda);
 
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);
@@ -101,6 +104,8 @@ async function run() {
 
 		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
 		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
+
+		agenda.every(REQUEST_TTL, JOB_PUBLISHER_REQUEST_STATE_NEW_CHECK, undefined, opts);
 
 		agenda.start();
 	});

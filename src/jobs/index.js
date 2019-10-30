@@ -28,3 +28,5 @@
 
 export {default as createRequestJobs} from './requests';
 export {default as createMelindaJobs} from './melinda';
+export {default as createCheckupJobs} from './checkup';
+
