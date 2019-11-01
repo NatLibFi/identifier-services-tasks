@@ -27,12 +27,22 @@
 */
 import {Utils} from '@natlibfi/identifier-services-commons';
 import {createApiClient} from '@natlibfi/identifier-services-commons';
-import {API_URL, API_USERNAME, API_PASSWORD, API_CLIENT_USER_AGENT, JOB_PUBLISHER_REQUEST_STATE_NEW_CHECK, REQUEST_TTL} from '../config';
+import {
+	API_URL,
+	API_USERNAME,
+	API_PASSWORD,
+	API_CLIENT_USER_AGENT,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN,
+	REQUEST_TTL
+} from '../config';
 const {createLogger} = Utils;
 import moment from 'moment';
 import humanInterval from 'human-interval';
 
-export default function (agenda) {
+export default async function (agenda) {
 	const logger = createLogger();
 
 	const client = createApiClient({
@@ -40,48 +50,44 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW_CHECK, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publishers');
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, {concurrency: 1}, async (_, done) => {
+		await request(done, 'users');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publishers');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publications', 'isbn-ismn');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publications', 'issn');
 	});
 
-	// eslint-disable-next-line max-params
-	async function request(job, done, state, type, subtype) {
+	async function request(done, type, subtype) {
 		try {
-			await getRequests();
+			await processRequest({
+				client,
+				processCallback,
+				query: {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null},
+				messageCallback: count => `${count} requests are inProgress`, type: type, subtype: subtype,
+				ttl: humanInterval(REQUEST_TTL)
+			});
 		} finally {
 			done();
 		}
 
-		async function getRequests() {
-			await processRequest({
-				client,
-				processCallback,
-				query: {queries: [{query: {state: state, backgroundProcessingState: 'inProgress'}}], offset: null},
-				messageCallback: count => `${count} requests are inProgress`, type: type, subtype: subtype,
-				ttl: humanInterval(REQUEST_TTL)
-			});
-		}
-
 		async function processCallback(requests, type, subtype) {
 			await Promise.all(requests.map(async request => {
-				switch (request.state) {
-					case 'new':
-						await setBackground(request, type, subtype, 'pending');
-						break;
-					default:
-						break;
-				}
+				await setBackground(request, type, subtype, 'pending');
 			}));
 
 			async function setBackground(request, type, subtype, state) {
 				const payload = {...request, backgroundProcessingState: state};
 				const {requests} = client;
-				switch (type) {
-					case 'publishers':
-						await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
-						break;
-					default:
-						break;
+				if (subtype === undefined) {
+					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
+				} else {
+					await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
 				}
 
 				logger.log('info', `Background processing State changed to ${state} for${request.id}`);
@@ -93,9 +99,18 @@ export default function (agenda) {
 				let response;
 				let res;
 				const {requests} = client;
+
 				switch (type) {
+					case 'users':
+						response = await requests.fetchList({path: `requests/${type}`, query: query});
+						res = await response.json();
+						break;
 					case 'publishers':
 						response = await requests.fetchList({path: `requests/${type}`, query: query});
+						res = await response.json();
+						break;
+					case 'publications':
+						response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
 						res = await response.json();
 						break;
 
@@ -105,8 +120,10 @@ export default function (agenda) {
 
 				let requestsTotal = 0;
 				const pendingProcessors = [];
+
 				if (res.results) {
 					const filteredRequests = res.results.filter(filter);
+					requestsTotal += filteredRequests.length;
 					if (filteredRequests.length > 0) {
 						const result = filteredRequests.map(request => {
 							const modificationTime = moment(request.lastUpdated.timestamp);
@@ -119,8 +136,6 @@ export default function (agenda) {
 						pendingProcessors.push(processCallback(result, type, subtype));
 						return pendingProcessors;
 					}
-
-					requestsTotal += filteredRequests.length;
 				}
 
 				if (messageCallback) {
