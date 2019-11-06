@@ -32,7 +32,10 @@ import {
 	API_USERNAME,
 	API_PASSWORD,
 	API_CLIENT_USER_AGENT,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN,
 	REQUEST_TTL
 } from '../config';
 const {createLogger} = Utils;
@@ -41,58 +44,80 @@ import humanInterval from 'human-interval';
 
 export default async function (agenda) {
 	const logger = createLogger();
-	const types = ['users', 'publishers', 'publications/isbn-ismn', 'publications/issn'];
+
 	const client = createApiClient({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP, {concurrency: 1}, async (_, done) => {
-		try {
-			const requests = await getRequests();
-			const newResult = requests.reduce((acc, cVal) => {
-				return acc.concat(cVal);
-			}, []);
-			logger.log('debug', `${newResult.length} requests are inProgress`);
-			newResult.map(async request => {
-				const modificationTime = moment(request.lastUpdated.timestamp);
-				if (modificationTime.add(humanInterval(REQUEST_TTL)).isBefore(moment())) {
-					await processCallback(request);
-				}
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, {concurrency: 1}, async (_, done) => {
+		await request(done, 'users');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publishers');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publications/isbn-ismn');
+	});
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
+		await request(done, 'publications/issn',);
+	});
 
-				return null;
+	async function request(done, type) {
+		try {
+			await processRequest({
+				client,
+				processCallback,
+				query: {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null},
+				type: type,
+				ttl: humanInterval(REQUEST_TTL)
 			});
 		} finally {
 			done();
 		}
-	});
 
-	async function getRequests() {
-		const {requests} = client;
-		return Promise.all(
-			types.map(async type => {
-				const response = await requests.fetchList({path: `requests/${type}`, query: {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null}});
-				const res = await response.json();
-				const result = res.results.map(item => {
+		async function processCallback(requestData) {
+			await Promise.all(requestData.map(async request => {
+				await setBackground(request, request.requestType, 'pending');
+			}));
+
+			async function setBackground(request, type, state) {
+				delete request.requestType;
+				const payload = {...request, backgroundProcessingState: state};
+				const {requests} = client;
+				await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
+
+				logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+			}
+		}
+
+		async function processRequest({client, processCallback, query, type, ttl}) {
+			try {
+				const {requests} = client;
+				const response = await requests.fetchList({path: `requests/${type}`, query: query});
+				const result = await response.json();
+				logger.log('debug', `${result.results.length} requests are inProgress for ${type}`);
+				const newResult = result.results.map(item => {
 					const o = Object.assign({}, item);
 					o.requestType = type;
 					return o;
 				});
-				return result;
-			})
-		);
-	}
 
-	async function processCallback(request) {
-		await setBackground(request, request.requestType, 'pending');
+				if (newResult.length > 0) {
+					const requestData = newResult.map(request => {
+						const modificationTime = moment(request.lastUpdated.timestamp);
+						if (modificationTime.add(ttl).isBefore(moment())) {
+							return request;
+						}
 
-		async function setBackground(request, type, state) {
-			delete request.requestType;
-			const payload = {...request, backgroundProcessingState: state};
-			const {requests} = client;
-			const response = await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
-			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-			return response;
+						return null;
+					});
+
+					return processCallback(requestData);
+				}
+			} catch (err) {
+				return err;
+			}
 		}
 	}
 }
