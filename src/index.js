@@ -28,7 +28,7 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
-import {createRequestJobs, createMelindaJobs} from './jobs';
+import {createRequestJobs, createMelindaJobs, createCleanupJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
@@ -51,7 +51,13 @@ import {
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
 	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS
+	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	REQUEST_TTL,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN
+
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -60,9 +66,8 @@ run();
 
 async function run() {
 	const Logger = createLogger();
-	const client = new MongoClient(MONGO_URI, {useNewUrlParser: true});
+	const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
 	const Mongo = await client.connect();
-
 	Mongo.on('error', err => {
 		Logger.log('error', 'Error stack' in err ? err.stact : err);
 		process.exit(1);
@@ -75,13 +80,13 @@ async function run() {
 
 	await initDb();
 	const agenda = new Agenda({mongo: Mongo.db()});
-
 	agenda.on('error', handleExit);
 	agenda.on('ready', () => {
 		const opts = TZ ? {timezone: TZ} : {};
 
 		createRequestJobs(agenda);
 		createMelindaJobs(agenda);
+		createCleanupJobs(agenda);
 
 		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
 		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);
@@ -101,6 +106,11 @@ async function run() {
 
 		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
 		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
+
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, undefined, opts);
 
 		agenda.start();
 	});

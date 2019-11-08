@@ -64,48 +64,47 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'users');
+	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+		await request(done, 'new', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'users');
+	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'accepted', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'users');
-	});
-
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publishers');
-	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publishers');
-	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publishers');
+	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'rejected', 'users');
 	});
 
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publications', 'isbn-ismn');
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+		await request(done, 'new', 'publishers');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publications', 'isbn-ismn');
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'accepted', 'publishers');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publications', 'isbn-ismn');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'new', 'publications', 'issn');
-	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'accepted', 'publications', 'issn');
-	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (job, done) => {
-		await request(job, done, 'rejected', 'publications', 'issn');
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'rejected', 'publishers');
 	});
 
-	// eslint-disable-next-line max-params
-	async function request(job, done, state, type, subtype) {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+		await request(done, 'new', 'publications', 'isbn-ismn');
+	});
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'accepted', 'publications', 'isbn-ismn');
+	});
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'rejected', 'publications', 'isbn-ismn');
+	});
+
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+		await request(done, 'new', 'publications', 'issn');
+	});
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'accepted', 'publications', 'issn');
+	});
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'rejected', 'publications', 'issn');
+	});
+
+	async function request(done, state, type, subtype) {
 		try {
 			await getRequests();
 		} finally {
@@ -221,7 +220,6 @@ export default function (agenda) {
 
 			let requestsTotal = 0;
 			const pendingProcessors = [];
-
 			if (res.results) {
 				const filteredRequests = res.results.filter(filter);
 				requestsTotal += filteredRequests.length;
@@ -276,7 +274,7 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, notes, publisher, lastUpdated, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, notes, publisher, lastUpdated, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
@@ -284,7 +282,7 @@ export default function (agenda) {
 	}
 
 	function formatUsersRequest(request) {
-		const {backgroundProcessingState, state, lastUpdated, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, lastUpdated, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
