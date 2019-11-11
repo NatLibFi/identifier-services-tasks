@@ -317,7 +317,6 @@ export default function (agenda) {
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
-
 		const {JWK, JWE} = jose;
 		const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
 
@@ -330,7 +329,7 @@ export default function (agenda) {
 			expiresIn: '24 hours',
 			iat: true
 		});
-		
+
 		const token = await JWE.encrypt(payload, key, {kid: key.kid});
 
 		const link = `${UI_URL}/${type}/passwordReset/${token}`;
