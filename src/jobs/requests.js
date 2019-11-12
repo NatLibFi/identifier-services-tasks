@@ -28,8 +28,7 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
-import * as jwtEncrypt from 'jwt-token-encrypt';
-
+import {JWE, JWK, JWT} from 'jose';
 import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
 	UI_URL,
@@ -318,26 +317,19 @@ export default function (agenda) {
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
-		const res = fs.readFileSync(`${PRIVATE_KEY_URL}`, 'utf-8');
-		const encryption = JSON.parse(res);
+		const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
 
-		const jwtDetails = {
-			secret: 'this is a secret',
-			expiresIn: '24h'
-		};
-		const publicData = {
-			role: type
-		};
 		const privateData = {
 			email: request.email,
 			id: request.id
 		};
-		const token = await jwtEncrypt.generateJWT(
-			jwtDetails,
-			publicData,
-			encryption[0],
-			privateData
-		);
+
+		const payload = JWT.sign(privateData, key, {
+			expiresIn: '24 hours',
+			iat: true
+		});
+
+		const token = await JWE.encrypt(payload, key, {kid: key.kid});
 
 		const link = `${UI_URL}/${type}/passwordReset/${token}`;
 		const result = await sendEmail({

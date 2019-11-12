@@ -39,7 +39,7 @@
     "@natlibfi/melinda-commons": "^7.0.1",
     "@natlibfi/melinda-record-import-commons": "^7.0.1",
     "agenda": "^2.0.2",
-    "jwt-token-encrypt": "^1.0.4",
+    "jose": "^1.12.0",
     "mongodb": "^3.3.3"
   },
   "devDependencies": {

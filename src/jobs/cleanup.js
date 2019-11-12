@@ -60,7 +60,7 @@ export default async function (agenda) {
 		await request(done, 'publications/isbn-ismn');
 	});
 	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
-		await request(done, 'publications/issn',);
+		await request(done, 'publications/issn');
 	});
 
 	async function request(done, type) {
