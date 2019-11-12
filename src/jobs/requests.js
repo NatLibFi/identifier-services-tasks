@@ -28,7 +28,7 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
-import jose from 'jose';
+import {JWE, JWK, JWT} from 'jose';
 import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
 	UI_URL,
@@ -317,7 +317,6 @@ export default function (agenda) {
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
-		const {JWK, JWE} = jose;
 		const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
 
 		const privateData = {
@@ -325,7 +324,7 @@ export default function (agenda) {
 			id: request.id
 		};
 
-		const payload = jose.JWT.sign(privateData, key, {
+		const payload = JWT.sign(privateData, key, {
 			expiresIn: '24 hours',
 			iat: true
 		});
