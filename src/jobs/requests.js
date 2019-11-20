@@ -174,6 +174,7 @@ export default function (agenda) {
 
 		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
+			delete payload.id;
 			const {requests} = client;
 			switch (type) {
 				case 'users':
@@ -237,17 +238,19 @@ export default function (agenda) {
 
 	async function createResource(request, type, subtype) {
 		const {update} = client.requests;
+		const payload = await create(request, type, subtype);
+		delete payload.id;
 		switch (type) {
 			case 'users':
-				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${request.id}`, payload: payload});
 				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publishers':
-				await update({path: `requests/${type}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${request.id}`, payload: payload});
 				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publications':
-				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: await create(request, type, subtype)});
+				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
 				logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
 				break;
 
@@ -258,8 +261,8 @@ export default function (agenda) {
 		return null;
 	}
 
-	function formatPublisherRequest(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, ...rest} = {...request};
+	function formatPublisher(request) {
+		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, id, ...rest} = {...request};
 		const formatRequest = {
 			...rest,
 			primaryContact: request.primaryContact.map(item => item.email),
@@ -273,15 +276,15 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, publisher, lastUpdated, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
 		return formatRequest;
 	}
 
-	function formatUsersRequest(request) {
-		const {backgroundProcessingState, state, rejectionReason, lastUpdated, ...rest} = {...request};
+	function formatUsers(request) {
+		const {backgroundProcessingState, state, rejectionReason, lastUpdated, id, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
@@ -292,13 +295,13 @@ export default function (agenda) {
 		const {users, publishers, publications} = client;
 		switch (type) {
 			case 'users':
-				responseId = await users.create({path: type, payload: formatUsersRequest(request)});
+				responseId = await users.create({path: type, payload: formatUsers(request)});
 				response = await users.read(`${type}/${responseId}`);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
 			case 'publishers':
-				response = await publishers.create({path: type, payload: formatPublisherRequest(request)});
+				response = await publishers.create({path: type, payload: formatPublisher(request)});
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
 
@@ -320,7 +323,7 @@ export default function (agenda) {
 		const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
 
 		const privateData = {
-			email: request.email,
+			userId: request.userId,
 			id: request.id
 		};
 
