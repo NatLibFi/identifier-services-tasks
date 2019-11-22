@@ -284,7 +284,7 @@ export default function (agenda) {
 	}
 
 	function formatUsers(request) {
-		const {backgroundProcessingState, state, rejectionReason, lastUpdated, id, ...rest} = {...request};
+		const {mongoId, backgroundProcessingState, state, rejectionReason, lastUpdated, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
