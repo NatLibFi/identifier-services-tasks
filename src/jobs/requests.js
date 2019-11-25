@@ -129,7 +129,7 @@ export default function (agenda) {
 							name: `${type} request new`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: API_EMAIL
+							API_EMAIL: request.replyTo
 						});
 					}
 
@@ -142,7 +142,7 @@ export default function (agenda) {
 						args: request.rejectionReason,
 						getTemplate: getTemplate,
 						SMTP_URL: SMTP_URL,
-						API_EMAIL: API_EMAIL
+						API_EMAIL: request.replyTo
 					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
@@ -160,7 +160,7 @@ export default function (agenda) {
 							name: `${type} request accepted`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: API_EMAIL
+							API_EMAIL: request.replyTo
 						});
 					}
 
@@ -262,7 +262,7 @@ export default function (agenda) {
 	}
 
 	function formatPublisher(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, id, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, createdResource, id, ...rest} = {...request};
 		const formatRequest = {
 			...rest,
 			primaryContact: request.primaryContact.map(item => item.email),
@@ -276,7 +276,7 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
@@ -284,7 +284,7 @@ export default function (agenda) {
 	}
 
 	function formatUsers(request) {
-		const {mongoId, backgroundProcessingState, state, rejectionReason, lastUpdated, ...rest} = {...request};
+		const {mongoId, backgroundProcessingState, state, rejectionReason, replyTo, lastUpdated, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
@@ -340,7 +340,7 @@ export default function (agenda) {
 			args: {link: link, ...response},
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
-			API_EMAIL: API_EMAIL
+			API_EMAIL: request.replyTo
 		});
 		return result;
 	}
