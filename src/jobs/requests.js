@@ -275,7 +275,7 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, lastUpdated, id, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
