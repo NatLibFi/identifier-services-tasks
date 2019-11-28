@@ -319,14 +319,14 @@ export default function (agenda) {
 		return newRequest;
 	}
 
-	async function sendEmailToCreator(type, request, response){
+	async function sendEmailToCreator(type, request, response) {
 		const result = await sendEmail({
 			name: 'reply to a creator', // ===> Different template to send message to creator
 			args: response,
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
 			API_EMAIL: await getUserEmail(request.creator)
-		})
+		});
 		return result;
 	}
 
@@ -368,10 +368,6 @@ export default function (agenda) {
 
 	async function getUserEmail(userId) {
 		const {users} = client;
-		// const query = {queries: [{query: {id: userId}}], offset: null};
-		// const response = await users.fetchList({path: 'users', query: query});
-		// const result = await response.json();
-		// const userMID = result.results.map(item => item.mongoId);
 		const readResponse = await users.read(`users/${userId}`);
 		return readResponse.emails[0].value;
 	}
