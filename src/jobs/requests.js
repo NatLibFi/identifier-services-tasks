@@ -296,6 +296,7 @@ export default function (agenda) {
 			case 'users':
 				responseId = await users.create({path: type, payload: formatUsers(request)});
 				response = await users.read(`${type}/${responseId}`);
+				await sendEmailToCreator(type, request, response);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
@@ -316,6 +317,17 @@ export default function (agenda) {
 		delete response._id;
 		const newRequest = {...request, ...response};
 		return newRequest;
+	}
+
+	async function sendEmailToCreator(type, request, response){
+		const result = await sendEmail({
+			name: 'reply to a creator', // ===> Different template to send message to creator
+			args: response,
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: await getUserEmail(request.creator)
+		})
+		return result;
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
@@ -339,7 +351,7 @@ export default function (agenda) {
 			args: {link: link, ...response},
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
-			API_EMAIL: getUserEmail(request.creator)
+			API_EMAIL: response.emails[0].value
 		});
 		return result;
 	}
@@ -356,11 +368,11 @@ export default function (agenda) {
 
 	async function getUserEmail(userId) {
 		const {users} = client;
-		const query = {queries: [{query: {id: userId}}], offset: null};
-		const response = await users.fetchList({path: 'users', query: query});
-		const result = await response.json();
-		const userMID = result.results.map(item => item.mongoId);
-		const readResponse = await users.read(`users/${userMID[0]}`);
+		// const query = {queries: [{query: {id: userId}}], offset: null};
+		// const response = await users.fetchList({path: 'users', query: query});
+		// const result = await response.json();
+		// const userMID = result.results.map(item => item.mongoId);
+		const readResponse = await users.read(`users/${userId}`);
 		return readResponse.emails[0].value;
 	}
 }
