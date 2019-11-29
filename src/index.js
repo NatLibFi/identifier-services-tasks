@@ -2,7 +2,7 @@
 *
 * @licstart  The following is the entire license notice for the JavaScript code in this file.
 *
-* Tasks microservice of Identifier Services 
+* Tasks microservice of Identifier Services
 *
 * Copyright (C) 2019 University Of Helsinki (The National Library Of Finland)
 *
@@ -25,3 +25,114 @@
 * for the JavaScript code in this file.
 *
 */
+
+import {Utils} from '@natlibfi/identifier-services-commons';
+import Agenda from 'agenda';
+import {createRequestJobs, createMelindaJobs, createCleanupJobs} from './jobs';
+import {MongoClient, MongoError} from 'mongodb';
+import {
+	MONGO_URI,
+	TZ,
+	JOB_FREQ_PENDING,
+	JOB_FREQ_IN_PROGRESS,
+	JOB_FREQ_REQUEST_STATE_NEW,
+	JOB_FREQ_REQUEST_STATE_ACCEPTED,
+	JOB_FREQ_REQUEST_STATE_REJECTED,
+	JOB_USER_REQUEST_STATE_NEW,
+	JOB_USER_REQUEST_STATE_ACCEPTED,
+	JOB_USER_REQUEST_STATE_REJECTED,
+	JOB_PUBLISHER_REQUEST_STATE_NEW,
+	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
+	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	REQUEST_TTL,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN
+
+} from './config';
+
+const {createLogger, handleInterrupt} = Utils;
+
+run();
+
+async function run() {
+	const Logger = createLogger();
+	const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
+	const Mongo = await client.connect();
+	Mongo.on('error', err => {
+		Logger.log('error', 'Error stack' in err ? err.stact : err);
+		process.exit(1);
+	});
+
+	process
+		.on('SIGINT', handleExit)
+		.on('unhandledRejection', handleExit)
+		.on('uncaughtException', handleExit);
+
+	await initDb();
+	const agenda = new Agenda({mongo: Mongo.db()});
+	agenda.on('error', handleExit);
+	agenda.on('ready', () => {
+		const opts = TZ ? {timezone: TZ} : {};
+
+		createRequestJobs(agenda);
+		createMelindaJobs(agenda);
+		createCleanupJobs(agenda);
+
+		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_USER_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLISHER_REQUEST_STATE_NEW, undefined, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {}, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLISHER_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, undefined, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {}, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, undefined, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {}, opts);
+		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, undefined, opts);
+
+		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
+		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
+
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, undefined, opts);
+		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, undefined, opts);
+
+		agenda.start();
+	});
+
+	async function initDb() {
+		const db = Mongo.db();
+		try {
+			// Remove collection because it causes problems after restart
+			await db.dropCollection('agendaJobs');
+			await db.createCollection('agendaJobs');
+		} catch (err) {
+			// NamespaceNotFound === Collection doesn't exist
+			if (err instanceof MongoError && err.code === 26) {
+				return;
+			}
+
+			throw err;
+		}
+	}
+
+	async function handleExit(arg) {
+		await Mongo.close();
+		handleInterrupt(arg);
+	}
+}
