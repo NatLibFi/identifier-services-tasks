@@ -290,12 +290,11 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-		let responseId;
 		const {users, publishers, publications} = client;
 		switch (type) {
 			case 'users':
-				responseId = await users.create({path: type, payload: formatUsers(request)});
-				response = await users.read(`${type}/${responseId}`);
+				await users.create({path: type, payload: formatUsers(request)});
+				response = await users.read(`${type}/${request.email}`);
 				await sendEmailToCreator(type, request, response);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
