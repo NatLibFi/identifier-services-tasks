@@ -128,7 +128,7 @@ export default function (agenda) {
 							name: `${type} request new`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: request.replyTo
+							API_EMAIL: await getUserEmail(request.creator)
 						});
 					}
 
@@ -141,7 +141,7 @@ export default function (agenda) {
 						args: request.rejectionReason,
 						getTemplate: getTemplate,
 						SMTP_URL: SMTP_URL,
-						API_EMAIL: request.replyTo
+						API_EMAIL: await getUserEmail(request.creator)
 					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
@@ -159,7 +159,7 @@ export default function (agenda) {
 							name: `${type} request accepted`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: request.replyTo
+							API_EMAIL: await getUserEmail(request.creator)
 						});
 					}
 
@@ -262,7 +262,7 @@ export default function (agenda) {
 	}
 
 	function formatPublisher(request) {
-		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, createdResource, id, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
 		const formatRequest = {
 			...rest,
 			primaryContact: request.primaryContact.map(item => item.email),
@@ -276,7 +276,7 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, replyTo, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
@@ -285,7 +285,7 @@ export default function (agenda) {
 	}
 
 	function formatUsers(request) {
-		const {mongoId, backgroundProcessingState, state, rejectionReason, replyTo, lastUpdated, ...rest} = {...request};
+		const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
@@ -305,6 +305,7 @@ export default function (agenda) {
 			case 'users':
 				await users.create({path: type, payload: formatUsers(request)});
 				response = await users.read(`${type}/${request.email}`);
+				await sendEmailToCreator(type, request, response);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
 				break;
@@ -356,6 +357,17 @@ export default function (agenda) {
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
 			API_EMAIL: 'sanjog.shrestha@helsinki.fi'
+		});
+		return result;
+	}
+
+	async function sendEmailToCreator(type, request, response) {
+		const result = await sendEmail({
+			name: 'reply to a creator', // ===> Different template to send message to creator
+			args: response,
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: await getUserEmail(request.creator)
 		});
 		return result;
 	}
@@ -419,7 +431,7 @@ export default function (agenda) {
 			args: {link: link, ...response},
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
-			API_EMAIL: request.replyTo
+			API_EMAIL: response.emails[0].value
 		});
 		return result;
 	}
@@ -432,5 +444,11 @@ export default function (agenda) {
 
 		cache[key] = await client.templates.getTemplate(query);
 		return cache[key];
+	}
+
+	async function getUserEmail(userId) {
+		const {users} = client;
+		const readResponse = await users.read(`users/${userId}`);
+		return readResponse.emails[0].value;
 	}
 }
