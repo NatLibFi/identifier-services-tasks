@@ -238,6 +238,7 @@ export default function (agenda) {
 	async function createResource(request, type, subtype) {
 		const {update} = client.requests;
 		const payload = await create(request, type, subtype);
+		// console.log('*******', payload)
 		delete payload.id;
 		switch (type) {
 			case 'users':
@@ -279,6 +280,7 @@ export default function (agenda) {
 		const formatRequest = {
 			...rest
 		};
+
 		return formatRequest;
 	}
 
@@ -298,6 +300,7 @@ export default function (agenda) {
 		let newRange;
 		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
 		const {users, publishers, publications, ranges} = client;
+		const {update} = client.requests;
 		switch (type) {
 			case 'users':
 				await users.create({path: type, payload: formatUsers(request)});
@@ -311,18 +314,29 @@ export default function (agenda) {
 				break;
 
 			case 'publications':
-				// For ranges
+				// Fetch ranges
 				resRange = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
 				rangesList = await resRange.json();
-				// For Publication
-				activeRange = rangesList.results[0];
+				if (rangesList.results.length !== 0) {
+					activeRange = rangesList.results[0];
+					// Fetch Publication Issn
+					resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+					publicationIssnList = await resPublicationIssn.json();
+					newRange = await calculateNewRange({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newRange})});
+					console.log('create¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤¤', response)
 
-				resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-				publicationIssnList = await resPublicationIssn.json();
+					logger.log('info', `Resource for ${type}${subtype} has been created`);
+					if (newRange.slice(5, 8) === activeRange.rangeEnd) {
+						const payload = {...activeRange, active: false};
+						delete payload.id;
+						const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
+						if (res === 200) {
+							await sendEmailToAdministrator();
+						}
+					}
+				}
 
-				newRange = await calculateNewRange({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
-				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newRange})});
-				logger.log('info', `Resource for ${type}${subtype} has been created`);
 				break;
 
 			default:
@@ -330,8 +344,20 @@ export default function (agenda) {
 		}
 
 		delete response._id;
+		console.log('reaturn %%%%', request);
+
 		const newRequest = {...request, ...response};
 		return newRequest;
+	}
+
+	async function sendEmailToAdministrator() {
+		const result = await sendEmail({
+			name: 'reply to a creator', // Need to create its own template
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: 'sanjog.shrestha@helsinki.fi'
+		});
+		return result;
 	}
 
 	async function calculateNewRange({rangeList, subtype}) {
