@@ -62,43 +62,43 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_NEW, async (_, done) => {
 		await request(done, 'new', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, async (_, done) => {
 		await request(done, 'accepted', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, async (_, done) => {
 		await request(done, 'rejected', 'users');
 	});
 
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, async (_, done) => {
 		await request(done, 'new', 'publishers');
 	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, async (_, done) => {
 		await request(done, 'accepted', 'publishers');
 	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, async (_, done) => {
 		await request(done, 'rejected', 'publishers');
 	});
 
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, async (_, done) => {
 		await request(done, 'new', 'publications', 'isbn-ismn');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, async (_, done) => {
 		await request(done, 'accepted', 'publications', 'isbn-ismn');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, async (_, done) => {
 		await request(done, 'rejected', 'publications', 'isbn-ismn');
 	});
 
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, async (_, done) => {
 		await request(done, 'new', 'publications', 'issn');
 	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, async (_, done) => {
 		await request(done, 'accepted', 'publications', 'issn');
 	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, async (_, done) => {
 		await request(done, 'rejected', 'publications', 'issn');
 	});
 

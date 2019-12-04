@@ -33,6 +33,7 @@ import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
 	TZ,
+	MAX_CONCURRENCY,
 	JOB_FREQ_PENDING,
 	JOB_FREQ_IN_PROGRESS,
 	JOB_FREQ_REQUEST_STATE_NEW,
@@ -74,12 +75,13 @@ async function run() {
 	});
 
 	process
-		.on('SIGINT', handleExit)
+		.on('SIGTERM', graceful)
+		.on('SIGINT', graceful)
 		.on('unhandledRejection', handleExit)
 		.on('uncaughtException', handleExit);
 
 	await initDb();
-	const agenda = new Agenda({mongo: Mongo.db()});
+	const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
 	agenda.on('error', handleExit);
 	agenda.on('ready', () => {
 		const opts = TZ ? {timezone: TZ} : {};
@@ -134,5 +136,10 @@ async function run() {
 	async function handleExit(arg) {
 		await Mongo.close();
 		handleInterrupt(arg);
+	}
+
+	async function graceful() {
+		await agenda.stop();
+		process.exit(0);
 	}
 }
