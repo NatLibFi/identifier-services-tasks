@@ -279,6 +279,7 @@ export default function (agenda) {
 		const formatRequest = {
 			...rest
 		};
+
 		return formatRequest;
 	}
 
@@ -290,7 +291,15 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-		const {users, publishers, publications} = client;
+		let resRange;
+		let resPublicationIssn;
+		let publicationIssnList;
+		let rangesList;
+		let activeRange;
+		let newRange;
+		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
+		const {users, publishers, publications, ranges} = client;
+		const {update} = client.requests;
 		switch (type) {
 			case 'users':
 				await users.create({path: type, payload: formatUsers(request)});
@@ -305,8 +314,30 @@ export default function (agenda) {
 				break;
 
 			case 'publications':
-				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(request)});
-				logger.log('info', `Resource for ${type}${subtype} has been created`);
+				// Fetch ranges
+				resRange = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
+				rangesList = await resRange.json();
+				if (rangesList.results.length === 0) {
+					logger.log('info', 'No Active Ranges Found');
+				} else {
+					activeRange = rangesList.results[0];
+					// Fetch Publication Issn
+					resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+					publicationIssnList = await resPublicationIssn.json();
+					newRange = await calculateNewRange({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newRange})});
+
+					logger.log('info', `Resource for ${type}${subtype} has been created`);
+					if (newRange.slice(5, 8) === activeRange.rangeEnd) {
+						const payload = {...activeRange, active: false};
+						delete payload.id;
+						const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
+						if (res === 200) {
+							await sendEmailToAdministrator();
+						}
+					}
+				}
+
 				break;
 
 			default:
@@ -318,15 +349,63 @@ export default function (agenda) {
 		return newRequest;
 	}
 
+	async function sendEmailToAdministrator() {
+		const result = await sendEmail({
+			name: 'reply to a creator', // Need to create its own template later *****************
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: 'sanjog.shrestha@helsinki.fi'
+		});
+		return result;
+	}
+
 	async function sendEmailToCreator(type, request, response) {
 		const result = await sendEmail({
-			name: 'reply to a creator', // ===> Different template to send message to creator
+			name: 'reply to a creator',
 			args: response,
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
 			API_EMAIL: await getUserEmail(request.creator)
 		});
 		return result;
+	}
+
+	async function calculateNewRange({rangeList, subtype}) {
+		switch (subtype) {
+			case 'issn':
+				return calculateIssnRange(rangeList);
+			default:
+				return null;
+		}
+	}
+
+	function calculateIssnRange(array) {
+		const prefix = array[0].slice(0, 4);
+		const slicedRange = array.map(item => item.slice(5, 8));
+		const range = Math.max(...slicedRange) + 1;
+		return calculate(prefix, range);
+
+		function calculate(prefix, range) {
+			let checkDigit;
+			const combine = prefix.concat(range).split('');
+			const sum = combine.reduce((acc, item, index) => {
+				const m = ((combine.length + 1) - index) * item;
+				acc = Number(acc) + Number(m);
+				return acc;
+			}, '');
+
+			const remainder = sum % 11;
+			if (remainder === 0) {
+				checkDigit = '0';
+			} else {
+				const diff = 11 - remainder;
+				checkDigit = diff === 10 ? 'X' : diff.toString();
+			}
+
+			const result = `${prefix}-${range}${checkDigit}`;
+
+			return result;
+		}
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
