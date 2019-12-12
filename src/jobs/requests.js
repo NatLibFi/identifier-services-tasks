@@ -49,7 +49,8 @@ import {
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
-	PRIVATE_KEY_URL
+	PRIVATE_KEY_URL,
+	API_EMAIL
 } from '../config';
 
 const {createLogger, sendEmail} = Utils;
@@ -296,7 +297,7 @@ export default function (agenda) {
 		let publicationIssnList;
 		let rangesList;
 		let activeRange;
-		let newRange;
+		let newISSN;
 		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
 		const {users, publishers, publications, ranges} = client;
 		const {update} = client.requests;
@@ -324,11 +325,11 @@ export default function (agenda) {
 					// Fetch Publication Issn
 					resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
 					publicationIssnList = await resPublicationIssn.json();
-					newRange = await calculateNewRange({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
-					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newRange})});
+					newISSN = await calculateNewIdentifier({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
 
 					logger.log('info', `Resource for ${type}${subtype} has been created`);
-					if (newRange.slice(5, 8) === activeRange.rangeEnd) {
+					if (newISSN.slice(5, 8) === activeRange.rangeEnd) {
 						const payload = {...activeRange, active: false};
 						delete payload.id;
 						const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
@@ -354,7 +355,7 @@ export default function (agenda) {
 			name: 'reply to a creator', // Need to create its own template later *****************
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
-			API_EMAIL: 'sanjog.shrestha@helsinki.fi'
+			API_EMAIL: API_EMAIL
 		});
 		return result;
 	}
@@ -370,16 +371,16 @@ export default function (agenda) {
 		return result;
 	}
 
-	async function calculateNewRange({rangeList, subtype}) {
+	async function calculateNewIdentifier({rangeList, subtype}) {
 		switch (subtype) {
 			case 'issn':
-				return calculateIssnRange(rangeList);
+				return calculateNewISSN(rangeList);
 			default:
 				return null;
 		}
 	}
 
-	function calculateIssnRange(array) {
+	function calculateNewISSN(array) {
 		const prefix = array[0].slice(0, 4);
 		const slicedRange = array.map(item => item.slice(5, 8));
 		const range = Math.max(...slicedRange) + 1;
