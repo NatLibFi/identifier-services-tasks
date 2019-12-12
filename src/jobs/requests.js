@@ -381,13 +381,16 @@ export default function (agenda) {
 	}
 
 	function calculateNewISSN(array) {
+		// Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
 		const prefix = array[0].slice(0, 4);
 		const slicedRange = array.map(item => item.slice(5, 8));
+		// Get 3 digit of 2nd half from the highest identifier and adding 1 to it
 		const range = Math.max(...slicedRange) + 1;
 		return calculate(prefix, range);
 
 		function calculate(prefix, range) {
 			let checkDigit;
+			// Combine multiply and add identifier and return the last check digit
 			const combine = prefix.concat(range).split('');
 			const sum = combine.reduce((acc, item, index) => {
 				const m = ((combine.length + 1) - index) * item;
@@ -395,6 +398,7 @@ export default function (agenda) {
 				return acc;
 			}, '');
 
+			// Calculation to get the last digit of identifier
 			const remainder = sum % 11;
 			if (remainder === 0) {
 				checkDigit = '0';
