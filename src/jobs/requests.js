@@ -390,7 +390,7 @@ export default function (agenda) {
 
 		function calculate(prefix, range) {
 			let checkDigit;
-			// Combine multiply and add identifier and return the last check digit
+			// Calculation(multiplication and addition of digits)
 			const combine = prefix.concat(range).split('');
 			const sum = combine.reduce((acc, item, index) => {
 				const m = ((combine.length + 1) - index) * item;
@@ -398,7 +398,7 @@ export default function (agenda) {
 				return acc;
 			}, '');
 
-			// Calculation to get the last digit of identifier
+			// Get the remainder and calculate it to return the actual check digit
 			const remainder = sum % 11;
 			if (remainder === 0) {
 				checkDigit = '0';
