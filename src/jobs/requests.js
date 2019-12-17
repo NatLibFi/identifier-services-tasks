@@ -63,43 +63,43 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_USER_REQUEST_STATE_NEW, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
 		await request(done, 'new', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'accepted', 'users');
 	});
-	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, async (_, done) => {
+	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'rejected', 'users');
 	});
 
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
 		await request(done, 'new', 'publishers');
 	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'accepted', 'publishers');
 	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, async (_, done) => {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'rejected', 'publishers');
 	});
 
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
 		await request(done, 'new', 'publications', 'isbn-ismn');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'accepted', 'publications', 'isbn-ismn');
 	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'rejected', 'publications', 'isbn-ismn');
 	});
 
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
 		await request(done, 'new', 'publications', 'issn');
 	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'accepted', 'publications', 'issn');
 	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, async (_, done) => {
+	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'rejected', 'publications', 'issn');
 	});
 
@@ -292,10 +292,10 @@ export default function (agenda) {
 
 	async function create(request, type, subtype) {
 		let response;
-		let resRange;
+		let identifierResponse;
 		let resPublicationIssn;
 		let publicationIssnList;
-		let rangesList;
+		let identifierLists;
 		let activeRange;
 		let newISSN;
 		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
@@ -316,27 +316,20 @@ export default function (agenda) {
 
 			case 'publications':
 				// Fetch ranges
-				resRange = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
-				rangesList = await resRange.json();
-				if (rangesList.results.length === 0) {
+				identifierResponse = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
+				identifierLists = await identifierResponse.json();
+				if (identifierLists.results.length === 0) {
 					logger.log('info', 'No Active Ranges Found');
 				} else {
-					activeRange = rangesList.results[0];
+					activeRange = identifierLists.results[0];
 					// Fetch Publication Issn
 					resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
 					publicationIssnList = await resPublicationIssn.json();
-					newISSN = await calculateNewIdentifier({rangeList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					newISSN = await calculateNewIdentifier({identifierList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
 					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
 
 					logger.log('info', `Resource for ${type}${subtype} has been created`);
-					if (newISSN.slice(5, 8) === activeRange.rangeEnd) {
-						const payload = {...activeRange, active: false};
-						delete payload.id;
-						const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
-						if (res === 200) {
-							await sendEmailToAdministrator();
-						}
-					}
+					isLastInRange(newISSN, activeRange, update, subtype);
 				}
 
 				break;
@@ -348,6 +341,17 @@ export default function (agenda) {
 		delete response._id;
 		const newRequest = {...request, ...response};
 		return newRequest;
+	}
+
+	async function isLastInRange(newISSN, activeRange, update, subtype) {
+		if (newISSN.slice(5, 8) === activeRange.rangeEnd) {
+			const payload = {...activeRange, active: false};
+			delete payload.id;
+			const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
+			if (res === 200) {
+				await sendEmailToAdministrator();
+			}
+		}
 	}
 
 	async function sendEmailToAdministrator() {
@@ -371,10 +375,10 @@ export default function (agenda) {
 		return result;
 	}
 
-	async function calculateNewIdentifier({rangeList, subtype}) {
+	async function calculateNewIdentifier({identifierList, subtype}) {
 		switch (subtype) {
 			case 'issn':
-				return calculateNewISSN(rangeList);
+				return calculateNewISSN(identifierList);
 			default:
 				return null;
 		}
@@ -389,26 +393,25 @@ export default function (agenda) {
 		return calculate(prefix, range);
 
 		function calculate(prefix, range) {
-			let checkDigit;
 			// Calculation(multiplication and addition of digits)
 			const combine = prefix.concat(range).split('');
 			const sum = combine.reduce((acc, item, index) => {
 				const m = ((combine.length + 1) - index) * item;
 				acc = Number(acc) + Number(m);
 				return acc;
-			}, '');
+			}, 0);
 
 			// Get the remainder and calculate it to return the actual check digit
 			const remainder = sum % 11;
 			if (remainder === 0) {
-				checkDigit = '0';
-			} else {
-				const diff = 11 - remainder;
-				checkDigit = diff === 10 ? 'X' : diff.toString();
+				const checkDigit = '0';
+				const result = `${prefix}-${range}${checkDigit}`;
+				return result;
 			}
 
+			const diff = 11 - remainder;
+			const checkDigit = diff === 10 ? 'X' : diff.toString();
 			const result = `${prefix}-${range}${checkDigit}`;
-
 			return result;
 		}
 	}

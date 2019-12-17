@@ -50,16 +50,16 @@ export default async function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, async (_, done) => {
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, {concurrency: 1}, async (_, done) => {
 		await request(done, 'users');
 	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, async (_, done) => {
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, {concurrency: 1}, async (_, done) => {
 		await request(done, 'publishers');
 	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, async (_, done) => {
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, {concurrency: 1}, async (_, done) => {
 		await request(done, 'publications/isbn-ismn');
 	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, async (_, done) => {
+	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
 		await request(done, 'publications/issn');
 	});
 
