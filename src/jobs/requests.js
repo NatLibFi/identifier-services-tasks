@@ -197,22 +197,26 @@ export default function (agenda) {
 
 	async function processRequest({client, processCallback, messageCallback, query, type, subtype, filter = () => true}) {
 		try {
-			let response;
 			let res;
 			const {requests} = client;
 			switch (type) {
-				case 'users':
-					response = await requests.fetchList({path: `requests/${type}`, query: query});
+				case 'users': {
+					const response = await requests.fetchList({path: `requests/${type}`, query: query});
 					res = await response.json();
 					break;
-				case 'publishers':
-					response = await requests.fetchList({path: `requests/${type}`, query: query});
+				}
+
+				case 'publishers': {
+					const response = await requests.fetchList({path: `requests/${type}`, query: query});
 					res = await response.json();
 					break;
-				case 'publications':
-					response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
+				}
+
+				case 'publications': {
+					const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
 					res = await response.json();
 					break;
+				}
 
 				default:
 					break;
@@ -291,56 +295,56 @@ export default function (agenda) {
 	}
 
 	async function create(request, type, subtype) {
-		let response;
-		let identifierResponse;
-		let resPublicationIssn;
-		let publicationIssnList;
-		let identifierLists;
-		let activeRange;
-		let newISSN;
 		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
 		const {users, publishers, publications, ranges} = client;
 		const {update} = client.requests;
 		switch (type) {
-			case 'users':
+			case 'users': {
 				await users.create({path: type, payload: formatUsers(request)});
-				response = await users.read(`${type}/${request.email}`);
+				const response = await users.read(`${type}/${request.email}`);
 				await sendEmailToCreator(type, request, response);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
-				break;
-			case 'publishers':
-				response = await publishers.create({path: type, payload: formatPublisher(request)});
-				logger.log('info', `Resource for ${type} has been created`);
-				break;
+				delete response._id;
+				const newRequest = {...request, ...response};
+				return newRequest;
+			}
 
-			case 'publications':
+			case 'publishers': {
+				const response = await publishers.create({path: type, payload: formatPublisher(request)});
+				logger.log('info', `Resource for ${type} has been created`);
+				delete response._id;
+				const newRequest = {...request, ...response};
+				return newRequest;
+			}
+
+			case 'publications': {
 				// Fetch ranges
-				identifierResponse = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
-				identifierLists = await identifierResponse.json();
+				const identifierResponse = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
+				const identifierLists = await identifierResponse.json();
 				if (identifierLists.results.length === 0) {
 					logger.log('info', 'No Active Ranges Found');
 				} else {
-					activeRange = identifierLists.results[0];
+					const activeRange = identifierLists.results[0];
 					// Fetch Publication Issn
-					resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-					publicationIssnList = await resPublicationIssn.json();
-					newISSN = await calculateNewIdentifier({identifierList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
-					response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
-
+					const resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+					const publicationIssnList = await resPublicationIssn.json();
+					const newISSN = await calculateNewIdentifier({identifierList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
+					delete response._id;
+					const newRequest = {...request, ...response};
 					logger.log('info', `Resource for ${type}${subtype} has been created`);
 					isLastInRange(newISSN, activeRange, update, subtype);
+					return newRequest;
 				}
 
 				break;
+			}
 
-			default:
-				break;
+			default: {
+				return null;
+			}
 		}
-
-		delete response._id;
-		const newRequest = {...request, ...response};
-		return newRequest;
 	}
 
 	async function isLastInRange(newISSN, activeRange, update, subtype) {
