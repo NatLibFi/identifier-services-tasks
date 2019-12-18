@@ -196,38 +196,28 @@ export default function (agenda) {
 	}
 
 	async function processRequest({client, processCallback, messageCallback, query, type, subtype, filter = () => true}) {
-		try {
-			let res;
-			const {requests} = client;
-			switch (type) {
-				case 'users': {
-					const response = await requests.fetchList({path: `requests/${type}`, query: query});
-					res = await response.json();
-					break;
+		const {requests} = client;
+		let requestsTotal = 0;
+		const pendingProcessors = [];
+		async function test() {
+			if (type === 'users' || type === 'publishers') {
+				const response = await requests.fetchList({path: `requests/${type}`, query: query});
+				const result = await response.json();
+				if (result.results) {
+					const filteredRequests = result.results.filter(filter);
+					requestsTotal += filteredRequests.length;
+					pendingProcessors.push(processCallback(filteredRequests, type, subtype));
 				}
-
-				case 'publishers': {
-					const response = await requests.fetchList({path: `requests/${type}`, query: query});
-					res = await response.json();
-					break;
-				}
-
-				case 'publications': {
-					const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
-					res = await response.json();
-					break;
-				}
-
-				default:
-					break;
 			}
 
-			let requestsTotal = 0;
-			const pendingProcessors = [];
-			if (res.results) {
-				const filteredRequests = res.results.filter(filter);
-				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests, type, subtype));
+			if (type === 'publications') {
+				const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
+				const result = await response.json();
+				if (result.results) {
+					const filteredRequests = result.results.filter(filter);
+					requestsTotal += filteredRequests.length;
+					pendingProcessors.push(processCallback(filteredRequests, type, subtype));
+				}
 			}
 
 			if (messageCallback) {
@@ -235,9 +225,9 @@ export default function (agenda) {
 			}
 
 			return pendingProcessors;
-		} catch (err) {
-			return err;
 		}
+
+		return test();
 	}
 
 	async function createResource(request, type, subtype) {
