@@ -195,19 +195,16 @@ export default function (agenda) {
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, type, subtype, filter = () => true}) {
+	async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
 		const {requests} = client;
-		let requestsTotal = 0;
-		const pendingProcessors = [];
 		return perform();
 		async function perform() {
 			if (type === 'users' || type === 'publishers') {
 				const response = await requests.fetchList({path: `requests/${type}`, query: query});
 				const result = await response.json();
 				if (result.results) {
-					const filteredRequests = result.results.filter(filter);
-					requestsTotal += filteredRequests.length;
-					pendingProcessors.push(processCallback(filteredRequests, type, subtype));
+					logger.log('debug', messageCallback(result.results.length));
+					return processCallback(result.results, type, subtype);
 				}
 			}
 
@@ -215,17 +212,10 @@ export default function (agenda) {
 				const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
 				const result = await response.json();
 				if (result.results) {
-					const filteredRequests = result.results.filter(filter);
-					requestsTotal += filteredRequests.length;
-					pendingProcessors.push(processCallback(filteredRequests, type, subtype));
+					logger.log('debug', messageCallback(result.results.length));
+					return processCallback(result.results, type, subtype);
 				}
 			}
-
-			if (messageCallback) {
-				logger.log('debug', messageCallback(requestsTotal));
-			}
-
-			return pendingProcessors;
 		}
 	}
 
