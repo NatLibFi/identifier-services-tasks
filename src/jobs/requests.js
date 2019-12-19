@@ -199,7 +199,8 @@ export default function (agenda) {
 		const {requests} = client;
 		let requestsTotal = 0;
 		const pendingProcessors = [];
-		async function test() {
+		return perform();
+		async function perform() {
 			if (type === 'users' || type === 'publishers') {
 				const response = await requests.fetchList({path: `requests/${type}`, query: query});
 				const result = await response.json();
@@ -226,8 +227,6 @@ export default function (agenda) {
 
 			return pendingProcessors;
 		}
-
-		return test();
 	}
 
 	async function createResource(request, type, subtype) {
