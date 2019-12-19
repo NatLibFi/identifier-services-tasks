@@ -32,6 +32,8 @@ const {readEnvironmentVariable} = Utils;
 
 export const TZ = readEnvironmentVariable('TZ', {defaultValue: ''});
 
+export const MAX_CONCURRENCY = readEnvironmentVariable('MAX_CONCURRENCY', {defaultValue: '1'});
+
 export const MONGO_URI = readEnvironmentVariable('MONGO_URI', {defaultValue: 'mongodb://127.0.0.1/db'});
 
 export const API_URL = readEnvironmentVariable('API_URL', {defaultValue: 'http://localhost:8081'});

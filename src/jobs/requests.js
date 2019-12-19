@@ -34,7 +34,6 @@ import {
 	UI_URL,
 	API_URL,
 	SMTP_URL,
-	API_EMAIL,
 	JOB_USER_REQUEST_STATE_NEW,
 	JOB_USER_REQUEST_STATE_ACCEPTED,
 	JOB_USER_REQUEST_STATE_REJECTED,
@@ -50,7 +49,8 @@ import {
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
-	PRIVATE_KEY_URL
+	PRIVATE_KEY_URL,
+	API_EMAIL
 } from '../config';
 
 const {createLogger, sendEmail} = Utils;
@@ -129,7 +129,7 @@ export default function (agenda) {
 							name: `${type} request new`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: API_EMAIL
+							API_EMAIL: await getUserEmail(request.creator)
 						});
 					}
 
@@ -142,7 +142,7 @@ export default function (agenda) {
 						args: request.rejectionReason,
 						getTemplate: getTemplate,
 						SMTP_URL: SMTP_URL,
-						API_EMAIL: API_EMAIL
+						API_EMAIL: await getUserEmail(request.creator)
 					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
@@ -160,7 +160,7 @@ export default function (agenda) {
 							name: `${type} request accepted`,
 							getTemplate: getTemplate,
 							SMTP_URL: SMTP_URL,
-							API_EMAIL: API_EMAIL
+							API_EMAIL: await getUserEmail(request.creator)
 						});
 					}
 
@@ -195,44 +195,27 @@ export default function (agenda) {
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, type, subtype, filter = () => true}) {
-		try {
-			let response;
-			let res;
-			const {requests} = client;
-			switch (type) {
-				case 'users':
-					response = await requests.fetchList({path: `requests/${type}`, query: query});
-					res = await response.json();
-					break;
-				case 'publishers':
-					response = await requests.fetchList({path: `requests/${type}`, query: query});
-					res = await response.json();
-					break;
-				case 'publications':
-					response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
-					res = await response.json();
-					break;
-
-				default:
-					break;
+	async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
+		const {requests} = client;
+		return perform();
+		async function perform() {
+			if (type === 'users' || type === 'publishers') {
+				const response = await requests.fetchList({path: `requests/${type}`, query: query});
+				const result = await response.json();
+				if (result.results) {
+					logger.log('debug', messageCallback(result.results.length));
+					return processCallback(result.results, type, subtype);
+				}
 			}
 
-			let requestsTotal = 0;
-			const pendingProcessors = [];
-			if (res.results) {
-				const filteredRequests = res.results.filter(filter);
-				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests, type, subtype));
+			if (type === 'publications') {
+				const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
+				const result = await response.json();
+				if (result.results) {
+					logger.log('debug', messageCallback(result.results.length));
+					return processCallback(result.results, type, subtype);
+				}
 			}
-
-			if (messageCallback) {
-				logger.log('debug', messageCallback(requestsTotal));
-			}
-
-			return pendingProcessors;
-		} catch (err) {
-			return err;
 		}
 	}
 
@@ -262,7 +245,7 @@ export default function (agenda) {
 	}
 
 	function formatPublisher(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, createdResource, id, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
 		const formatRequest = {
 			...rest,
 			primaryContact: request.primaryContact.map(item => item.email),
@@ -276,47 +259,144 @@ export default function (agenda) {
 	}
 
 	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, notes, publisher, lastUpdated, id, role, ...rest} = {...request};
+		const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
 		const formatRequest = {
 			...rest
 		};
+
 		return formatRequest;
 	}
 
 	function formatUsers(request) {
-		const {backgroundProcessingState, state, rejectionReason, lastUpdated, id, ...rest} = {...request};
+		const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
 		const formatRequest = {...rest};
 		return formatRequest;
 	}
 
 	async function create(request, type, subtype) {
-		let response;
-		let responseId;
-		const {users, publishers, publications} = client;
+		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
+		const {users, publishers, publications, ranges} = client;
+		const {update} = client.requests;
 		switch (type) {
-			case 'users':
-				responseId = await users.create({path: type, payload: formatUsers(request)});
-				response = await users.read(`${type}/${responseId}`);
+			case 'users': {
+				await users.create({path: type, payload: formatUsers(request)});
+				const response = await users.read(`${type}/${request.email}`);
+				await sendEmailToCreator(type, request, response);
 				await createLinkAndSendEmail(type, request, response);
 				logger.log('info', `Resource for ${type} has been created`);
-				break;
-			case 'publishers':
-				response = await publishers.create({path: type, payload: formatPublisher(request)});
+				delete response._id;
+				const newRequest = {...request, ...response};
+				return newRequest;
+			}
+
+			case 'publishers': {
+				const response = await publishers.create({path: type, payload: formatPublisher(request)});
 				logger.log('info', `Resource for ${type} has been created`);
-				break;
+				delete response._id;
+				const newRequest = {...request, ...response};
+				return newRequest;
+			}
 
-			case 'publications':
-				response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(request)});
-				logger.log('info', `Resource for ${type}${subtype} has been created`);
-				break;
+			case 'publications': {
+				// Fetch ranges
+				const identifierResponse = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
+				const identifierLists = await identifierResponse.json();
+				if (identifierLists.results.length === 0) {
+					logger.log('info', 'No Active Ranges Found');
+				} else {
+					const activeRange = identifierLists.results[0];
+					// Fetch Publication Issn
+					const resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+					const publicationIssnList = await resPublicationIssn.json();
+					const newISSN = await calculateNewIdentifier({identifierList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
+					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
+					delete response._id;
+					const newRequest = {...request, ...response};
+					logger.log('info', `Resource for ${type}${subtype} has been created`);
+					isLastInRange(newISSN, activeRange, update, subtype);
+					return newRequest;
+				}
 
-			default:
 				break;
+			}
+
+			default: {
+				return null;
+			}
 		}
+	}
 
-		delete response._id;
-		const newRequest = {...request, ...response};
-		return newRequest;
+	async function isLastInRange(newISSN, activeRange, update, subtype) {
+		if (newISSN.slice(5, 8) === activeRange.rangeEnd) {
+			const payload = {...activeRange, active: false};
+			delete payload.id;
+			const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
+			if (res === 200) {
+				await sendEmailToAdministrator();
+			}
+		}
+	}
+
+	async function sendEmailToAdministrator() {
+		const result = await sendEmail({
+			name: 'reply to a creator', // Need to create its own template later *****************
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: API_EMAIL
+		});
+		return result;
+	}
+
+	async function sendEmailToCreator(type, request, response) {
+		const result = await sendEmail({
+			name: 'reply to a creator',
+			args: response,
+			getTemplate: getTemplate,
+			SMTP_URL: SMTP_URL,
+			API_EMAIL: await getUserEmail(request.creator)
+		});
+		return result;
+	}
+
+	async function calculateNewIdentifier({identifierList, subtype}) {
+		switch (subtype) {
+			case 'issn':
+				return calculateNewISSN(identifierList);
+			default:
+				return null;
+		}
+	}
+
+	function calculateNewISSN(array) {
+		// Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
+		const prefix = array[0].slice(0, 4);
+		const slicedRange = array.map(item => item.slice(5, 8));
+		// Get 3 digit of 2nd half from the highest identifier and adding 1 to it
+		const range = Math.max(...slicedRange) + 1;
+		return calculate(prefix, range);
+
+		function calculate(prefix, range) {
+			// Calculation(multiplication and addition of digits)
+			const combine = prefix.concat(range).split('');
+			const sum = combine.reduce((acc, item, index) => {
+				const m = ((combine.length + 1) - index) * item;
+				acc = Number(acc) + Number(m);
+				return acc;
+			}, 0);
+
+			// Get the remainder and calculate it to return the actual check digit
+			const remainder = sum % 11;
+			if (remainder === 0) {
+				const checkDigit = '0';
+				const result = `${prefix}-${range}${checkDigit}`;
+				return result;
+			}
+
+			const diff = 11 - remainder;
+			const checkDigit = diff === 10 ? 'X' : diff.toString();
+			const result = `${prefix}-${range}${checkDigit}`;
+			return result;
+		}
 	}
 
 	async function createLinkAndSendEmail(type, request, response) {
@@ -340,7 +420,7 @@ export default function (agenda) {
 			args: {link: link, ...response},
 			getTemplate: getTemplate,
 			SMTP_URL: SMTP_URL,
-			API_EMAIL: API_EMAIL
+			API_EMAIL: response.emails[0].value
 		});
 		return result;
 	}
@@ -353,5 +433,11 @@ export default function (agenda) {
 
 		cache[key] = await client.templates.getTemplate(query);
 		return cache[key];
+	}
+
+	async function getUserEmail(userId) {
+		const {users} = client;
+		const readResponse = await users.read(`users/${userId}`);
+		return readResponse.emails[0].value;
 	}
 }
