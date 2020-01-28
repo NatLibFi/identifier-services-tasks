@@ -299,21 +299,24 @@ export default function (agenda) {
 
 			case 'publications': {
 				// Fetch ranges
-				const identifierResponse = await ranges.fetchList({path: `ranges/${subtype}`, query: rangeQueries});
-				const identifierLists = await identifierResponse.json();
+				const identifierLists = await determineIdentifierList();
 				if (identifierLists.results.length === 0) {
 					logger.log('info', 'No Active Ranges Found');
 				} else {
 					const activeRange = identifierLists.results[0];
 					// Fetch Publication Issn
-					const resPublicationIssn = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-					const publicationIssnList = await resPublicationIssn.json();
-					const newISSN = await calculateNewIdentifier({identifierList: publicationIssnList.results.map(item => item.identifier), subtype: subtype});
-					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newISSN})});
+					const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+					const publicationList = await resPublication.json();
+
+					const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
+					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication})});
 					delete response._id;
 					const newRequest = {...request, ...response};
 					logger.log('info', `Resource for ${type}${subtype} has been created`);
-					isLastInRange(newISSN, activeRange, update, subtype);
+					if (subtype === 'issn') {
+						isLastInRange(newPublication, activeRange, update, subtype);
+					}
+
 					return newRequest;
 				}
 
@@ -324,10 +327,30 @@ export default function (agenda) {
 				return null;
 			}
 		}
+
+		async function determineIdentifierList() {
+			if (subtype === 'isbn-ismn') {
+				if (request.type === 'music') {
+					const resultIsmn = await identifierLists('ismn');
+					return resultIsmn;
+				}
+
+				const resultIsbn = await identifierLists('isbn');
+				return resultIsbn;
+			}
+
+			const resultIssn = await identifierLists('issn');
+			return resultIssn;
+
+			async function identifierLists(v) {
+				const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
+				return response.json();
+			}
+		}
 	}
 
-	async function isLastInRange(newISSN, activeRange, update, subtype) {
-		if (newISSN.slice(5, 8) === activeRange.rangeEnd) {
+	async function isLastInRange(newPublication, activeRange, update, subtype) {
+		if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
 			const payload = {...activeRange, active: false};
 			delete payload.id;
 			const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
@@ -362,6 +385,8 @@ export default function (agenda) {
 		switch (subtype) {
 			case 'issn':
 				return calculateNewISSN(identifierList);
+			case 'isbnIsmn':
+				return 'newIdentifier';
 			default:
 				return null;
 		}
