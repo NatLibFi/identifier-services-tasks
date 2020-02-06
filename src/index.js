@@ -65,7 +65,7 @@ const {createLogger, handleInterrupt} = Utils;
 
 run();
 
-async function run() {
+export default async function run() {
 	const Logger = createLogger();
 	const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
 	const Mongo = await client.connect();
