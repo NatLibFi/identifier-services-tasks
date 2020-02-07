@@ -27,13 +27,14 @@
 */
 
 import {Utils} from '@natlibfi/identifier-services-commons';
-import {createApiClient, createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
+import {createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
+import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
 	API_URL,
 	MELINDA_RECORD_IMPORT_URL,
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-	// JOB_BACKGROUND_PROCESSING_PROCESSED,
+	JOB_BACKGROUND_PROCESSING_PROCESSED,
 	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
 	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
 	API_CLIENT_USER_AGENT,
@@ -89,7 +90,6 @@ export default function (agenda) {
 			const {publications} = client;
 			const response = await publications.fetchList({path: 'publications/isbn-ismn', query: query});
 			const res = await response.json();
-
 			let requestsTotal = 0;
 			const pendingProcessors = [];
 
@@ -125,19 +125,21 @@ export default function (agenda) {
 				return;
 
 			case JOB_BACKGROUND_PROCESSING_IN_PROGRESS:
-				// Await Promise.all(requests.map(async request => {
-				// // ==> Retrieve the blob metadata from Melinda's record import system
-				// 	const blobId = request.metadataReference.id;
-				// 	const response = await melindaClient.getBlobs();
-				// 	const response = await melindaClient.getBlobMetadata({id: blobId});
-				// 	console.log(response);
-				// 	if (response.state === 'PROCESSED') {
-				// 		const newId = response.processingInfo.cd[0].metadata.id;
-				// 		await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
-				// 	}
-				// }));
+				await Promise.all(requests.map(async request => {
+				// ==> Retrieve the blob metadata from Melinda's record import system
+					const blobId = request.metadataReference.id;
+					const response = await melindaClient.getBlobMetadata({id: blobId});
+					if (response.state === 'PROCESSED') {
+						if (response.processingInfo.importResults[0].status === 'DUPLICATE') {
+							const newId = response.processingInfo.importResults[0].metadata.matches[0];
+							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
+						} else {
+							const newId = response.processingInfo.importResults[0].metadata.id;
+							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
+						}
+					}
+				}));
 				return;
-
 			default:
 				return null;
 		}
