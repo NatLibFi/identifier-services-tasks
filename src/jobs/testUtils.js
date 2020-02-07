@@ -36,15 +36,16 @@ chai.use(chaiHttp);
 
 export default ({rootPath}) => {
 	console.log(rootPath);
+	let requester;
 	let mongoFixtures;
 
 	after(() => {
-		RewireAPI.__ResetDependency__('MONGO_URI')
+		RewireAPI.__ResetDependency__('MONGO_URI');
 	});
 
-	afterEach(async() => {
+	afterEach(async () => {
 		await mongoFixtures.close();
-		RewireAPI.__ResetDependency__('MONGO_URI')
+		RewireAPI.__ResetDependency__('MONGO_URI');
 	});
 
 	return (...args) => {
@@ -62,6 +63,8 @@ export default ({rootPath}) => {
 					const {
 						descr,
 						skip,
+						state,
+						type
 					} = getData(sub);
 
 					if (skip) {
@@ -70,15 +73,25 @@ export default ({rootPath}) => {
 						it(`${sub} ${descr}`, async () => {
 							mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
 							RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
-							RewireAPI.__Rewire__('PASSPORT_LOCAL_USERS', PASSPORT_LOCAL_USERS);
-                            
+							// RewireAPI.__Rewire__('PASSPORT_LOCAL_USERS', PASSPORT_LOCAL_USERS);
+
 							const task = await startTask();
 							requester = chai.request(task).keepOpen();
-                            
+
+							await mongoFixtures.populate([sub, 'dbContents.json']);
+
 						});
 					}
 				}
 			}
-		}
-	}
-}
+
+			function getData(subDir) {
+				const {descr, skip, state, type} = getFixture({
+					componenets: [subDir, 'metadata.json'],
+					reader: READERS.JSON
+				});
+				return {descr, skip, state, type};
+			}
+		};
+	};
+};
