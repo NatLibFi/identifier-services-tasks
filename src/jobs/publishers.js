@@ -26,9 +26,21 @@
 *
 */
 
-export {default as createMelindaJobs} from './melinda';
-export {default as createCleanupJobs} from './cleanup';
-export {default as createRequestUsers} from './users';
-export {default as createRequestPublishers} from './publishers';
-export {default as createRequestPublicationIsbnIsmn} from './publications/isbn-ismn';
-export {default as createRequestPublicationIssn} from './publications/issn';
+import {
+	JOB_PUBLISHER_REQUEST_STATE_NEW,
+	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
+	JOB_PUBLISHER_REQUEST_STATE_REJECTED
+} from '../config';
+import request from './requestsUtils';
+
+export default function (agenda) {
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
+		await request(done, 'new', 'publishers');
+	});
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'accepted', 'publishers');
+	});
+	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
+		await request(done, 'rejected', 'publishers');
+	});
+}

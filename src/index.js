@@ -28,12 +28,13 @@
 
 import {Utils} from '@natlibfi/identifier-services-commons';
 import Agenda from 'agenda';
-import {createRequestJobs, createMelindaJobs, createCleanupJobs} from './jobs';
+import {createRequestUsers, createRequestPublishers, createRequestPublicationIssn, createRequestPublicationIsbnIsmn, createMelindaJobs, createCleanupJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
 	MONGO_URI,
 	TZ,
 	MAX_CONCURRENCY,
+	JOB_STATE,
 	JOB_FREQ_PENDING,
 	JOB_FREQ_IN_PROGRESS,
 	JOB_FREQ_REQUEST_STATE_NEW,
@@ -58,7 +59,6 @@ import {
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN
-
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -75,8 +75,8 @@ export default async function run() {
 	});
 
 	process
-		.on('SIGTERM', graceful)
-		.on('SIGINT', graceful)
+		.on('SIGTERM', handleExit)
+		.on('SIGINT', handleExit)
 		.on('unhandledRejection', handleExit)
 		.on('uncaughtException', handleExit);
 
@@ -86,33 +86,58 @@ export default async function run() {
 	agenda.on('ready', () => {
 		const opts = TZ ? {timezone: TZ} : {};
 
-		createRequestJobs(agenda);
 		createMelindaJobs(agenda);
 		createCleanupJobs(agenda);
+		createRequestUsers(agenda);
+		createRequestPublishers(agenda);
+		createRequestPublicationIssn(agenda);
+		createRequestPublicationIsbnIsmn(agenda);
 
-		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_USER_REQUEST_STATE_NEW, undefined, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_USER_REQUEST_STATE_ACCEPTED, {}, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_USER_REQUEST_STATE_REJECTED, undefined, opts);
+		if (Array.isArray(JOB_STATE)) {
+			JOB_STATE.forEach(state => {
+				createAgenda(state);
+			});
+		} else {
+			createAgenda(JOB_STATE);
+		}
 
-		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLISHER_REQUEST_STATE_NEW, undefined, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {}, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLISHER_REQUEST_STATE_REJECTED, undefined, opts);
+		function createAgenda(state) {
+			if (state === 'new') {
+				agenda.every(
+					JOB_FREQ_REQUEST_STATE_NEW,
+					[JOB_USER_REQUEST_STATE_NEW, JOB_PUBLISHER_REQUEST_STATE_NEW, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW],
+					undefined,
+					opts
+				);
+			}
 
-		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, undefined, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {}, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, undefined, opts);
+			if (state === 'accepted') {
+				agenda.every(
+					JOB_FREQ_REQUEST_STATE_ACCEPTED,
+					[JOB_USER_REQUEST_STATE_ACCEPTED, JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED],
+					{},
+					opts
+				);
+			}
 
-		agenda.every(JOB_FREQ_REQUEST_STATE_NEW, JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, undefined, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_ACCEPTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {}, opts);
-		agenda.every(JOB_FREQ_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, undefined, opts);
+			if (state === 'rejected') {
+				agenda.every(
+					JOB_FREQ_REQUEST_STATE_REJECTED,
+					[JOB_USER_REQUEST_STATE_REJECTED, JOB_PUBLISHER_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED],
+					undefined,
+					opts
+				);
+			}
+		}
 
 		agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
 		agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
-
-		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, undefined, opts);
-		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, undefined, opts);
-		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, undefined, opts);
-		agenda.every(REQUEST_TTL, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, undefined, opts);
+		agenda.every(
+			REQUEST_TTL,
+			[JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN],
+			undefined,
+			opts
+		);
 
 		agenda.start();
 	});
@@ -135,6 +160,7 @@ export default async function run() {
 
 	async function handleExit(arg) {
 		await Mongo.close();
+		await graceful();
 		handleInterrupt(arg);
 	}
 
