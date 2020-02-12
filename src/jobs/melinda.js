@@ -95,27 +95,16 @@ export default function (agenda) {
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, state, type, filter = () => true}) {
-		try {
-			const {publications} = client;
+	async function processRequest({client, processCallback, messageCallback, query, state, type}) {
+		const {publications} = client;
+		return perform();
+		async function perform() {
 			const response = await publications.fetchList({path: `publications/${type}`, query: query});
-			const res = await response.json();
-			let requestsTotal = 0;
-			const pendingProcessors = [];
-
-			if (res.results) {
-				const filteredRequests = res.results.filter(filter);
-				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests, state, type));
+			const result = await response.json();
+			if (result.results) {
+				logger.log('debug', messageCallback(result.results.length));
+				return processCallback(result.results, state, type);
 			}
-
-			if (messageCallback) {
-				logger.log('debug', messageCallback(requestsTotal));
-			}
-
-			return pendingProcessors;
-		} catch (err) {
-			return err;
 		}
 	}
 
