@@ -26,17 +26,18 @@
 *
 */
 
-import {Utils} from '@natlibfi/identifier-services-commons';
+import {Utils, createApiClient} from '@natlibfi/identifier-services-commons';
 import {createApiClient as melindaCreateApiClient} from '@natlibfi/melinda-record-import-commons';
-import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
 	API_URL,
 	MELINDA_RECORD_IMPORT_URL,
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
 	JOB_BACKGROUND_PROCESSING_PROCESSED,
-	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
@@ -60,15 +61,23 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (job, done) => {
-		await request(job, done, JOB_BACKGROUND_PROCESSING_PENDING);
+	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
+		await request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'isbn-ismn');
 	});
 
-	agenda.define(JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (job, done) => {
-		await request(job, done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS);
+	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
+		await request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'isbn-ismn');
 	});
 
-	async function request(job, done, state) {
+	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
+		await request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'issn');
+	});
+
+	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
+		await request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'issn');
+	});
+
+	async function request(done, state, type) {
 		try {
 			await getRequests();
 		} finally {
@@ -80,15 +89,16 @@ export default function (agenda) {
 				client, processCallback,
 				query: {queries: [{query: {metadataReference: {state: state}}}], offset: null},
 				messageCallback: count => `${count} requests are ${state}`,
-				state: state
+				state: state,
+				type: type
 			});
 		}
 	}
 
-	async function processRequest({client, processCallback, messageCallback, query, state, filter = () => true}) {
+	async function processRequest({client, processCallback, messageCallback, query, state, type, filter = () => true}) {
 		try {
 			const {publications} = client;
-			const response = await publications.fetchList({path: 'publications/isbn-ismn', query: query});
+			const response = await publications.fetchList({path: `publications/${type}`, query: query});
 			const res = await response.json();
 			let requestsTotal = 0;
 			const pendingProcessors = [];
@@ -96,7 +106,7 @@ export default function (agenda) {
 			if (res.results) {
 				const filteredRequests = res.results.filter(filter);
 				requestsTotal += filteredRequests.length;
-				pendingProcessors.push(processCallback(filteredRequests, state));
+				pendingProcessors.push(processCallback(filteredRequests, state, type));
 			}
 
 			if (messageCallback) {
@@ -109,7 +119,7 @@ export default function (agenda) {
 		}
 	}
 
-	async function processCallback(requests, state) {
+	async function processCallback(requests, state, type) {
 		switch (state) {
 			case JOB_BACKGROUND_PROCESSING_PENDING:
 				await Promise.all(requests.map(async request => {
@@ -120,7 +130,7 @@ export default function (agenda) {
 						profile: MELINDA_RECORD_IMPORT_PROFILE
 					});
 					logger.log('info', `Created new blob ${blobId}`);
-					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId);
+					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type);
 				}));
 				return;
 
@@ -132,10 +142,10 @@ export default function (agenda) {
 					if (response.state === 'PROCESSED') {
 						if (response.processingInfo.importResults[0].status === 'DUPLICATE') {
 							const newId = response.processingInfo.importResults[0].metadata.matches[0];
-							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
+							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
 						} else {
 							const newId = response.processingInfo.importResults[0].metadata.id;
-							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId);
+							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
 						}
 					}
 				}));
@@ -144,10 +154,10 @@ export default function (agenda) {
 				return null;
 		}
 
-		async function setBackground(request, state, blobId) {
+		async function setBackground(request, state, blobId, type) {
 			const payload = {...request, metadataReference: {state: state, id: blobId && blobId}};
 			const {publications} = client;
-			await publications.update({path: `publications/isbn-ismn/${request.id}`, payload: payload});
+			await publications.update({path: `publications/${type}/${request.id}`, payload: payload});
 			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 		}
 	}
