@@ -27,6 +27,7 @@
 */
 import chai, {expect} from 'chai';
 import chaiHttp from 'chai-http';
+import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
@@ -57,14 +58,15 @@ export default ({rootPath}) => {
 
 			async function iterate() {
 				const sub = subDirs.shift();
-				// const PASSPORT_LOCAL_USERS = `file://${joinPath.apply(undefined, dir)}/${sub}/local.json`;
+				// Const PASSPORT_LOCAL_USERS = `file://${joinPath.apply(undefined, dir)}/${sub}/local.json`;
 
 				if (sub) {
 					const {
 						descr,
 						skip,
 						state,
-						type
+						apiUrl,
+						query
 					} = getData(sub);
 
 					if (skip) {
@@ -73,24 +75,23 @@ export default ({rootPath}) => {
 						it(`${sub} ${descr}`, async () => {
 							mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
 							RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
-							// RewireAPI.__Rewire__('PASSPORT_LOCAL_USERS', PASSPORT_LOCAL_USERS);
+							RewireAPI.__Rewire__('JOB_STATE', state);
 
 							const task = await startTask();
 							requester = chai.request(task).keepOpen();
-
 							await mongoFixtures.populate([sub, 'dbContents.json']);
-
+							const scope = nock(apiUrl).post('/requests/user', {query: query});
 						});
 					}
 				}
 			}
 
 			function getData(subDir) {
-				const {descr, skip, state, type} = getFixture({
+				const {descr, skip, state, apiUrl, query} = getFixture({
 					componenets: [subDir, 'metadata.json'],
 					reader: READERS.JSON
 				});
-				return {descr, skip, state, type};
+				return {descr, skip, state, apiUrl, query};
 			}
 		};
 	};

@@ -92,7 +92,6 @@ export default async function run() {
 		createRequestPublishers(agenda);
 		createRequestPublicationIssn(agenda);
 		createRequestPublicationIsbnIsmn(agenda);
-
 		if (Array.isArray(JOB_STATE)) {
 			JOB_STATE.forEach(state => {
 				createAgenda(state);

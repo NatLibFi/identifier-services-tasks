@@ -124,6 +124,7 @@ export default async function (done, state, type, subtype) {
 			const {requests} = client;
 			switch (type) {
 				case 'users':
+					console.log(payload);
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
 					break;
 				case 'publishers':
