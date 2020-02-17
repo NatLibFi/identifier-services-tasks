@@ -44,7 +44,6 @@ import {
 const {createLogger, sendEmail} = Utils;
 
 export default async function (done, state, type, subtype) {
-
 	const logger = createLogger();
 
 	const client = createApiClient({
@@ -67,8 +66,8 @@ export default async function (done, state, type, subtype) {
 	}
 
 	async function processCallback(requests, type, subtype) {
-		console.log('%%%%%%%%%%%%%%%%%%%%%%', requests);
 		await Promise.all(requests.map(async request => {
+			console.log('This is requests', requests);
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':

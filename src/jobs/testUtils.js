@@ -25,73 +25,73 @@
 * for the JavaScript code in this file.
 *
 */
-import chai, {expect} from 'chai';
-import nock from 'nock';
-import {chaiNock} from 'chai-nock';
-import fixtureFactory, {READERS} from '@natlibfi/fixura';
-import mongoFixturesFactory from '@natlibfi/fixura-mongo';
-import startTask, {__RewireAPI__ as RewireAPI} from '../index1'; // eslint-disable-line import/named
-import {readdirSync} from 'fs';
-import {join as joinPath} from 'path';
+// import chai, {expect} from 'chai';
+// import nock from 'nock';
+// import {chaiNock} from 'chai-nock';
+// import fixtureFactory, {READERS} from '@natlibfi/fixura';
+// import mongoFixturesFactory from '@natlibfi/fixura-mongo';
+// import startTask, {__RewireAPI__ as RewireAPI} from '../index1'; // eslint-disable-line import/named
+// import {readdirSync} from 'fs';
+// import {join as joinPath} from 'path';
 
-chai.use(chaiNock);
-export default ({rootPath}) => {
-	let requester;
-	let mongoFixtures;
+// chai.use(chaiNock);
+// export default ({rootPath}) => {
+// 	let requester;
+// 	let mongoFixtures;
 
-	after(() => {
-		RewireAPI.__ResetDependency__('MONGO_URI');
-	});
+// 	after(() => {
+// 		RewireAPI.__ResetDependency__('MONGO_URI');
+// 	});
 
-	afterEach(async () => {
-		await mongoFixtures.close();
-		RewireAPI.__ResetDependency__('MONGO_URI');
-	});
+// 	afterEach(async () => {
+// 		await mongoFixtures.close();
+// 		RewireAPI.__ResetDependency__('MONGO_URI');
+// 	});
 
-	return (...args) => {
-		return async () => {
-			const dir = rootPath.concat(args);
-			const {getFixture} = fixtureFactory({rooot: dir});
-			const subDirs = readdirSync(joinPath.apply(undefined, dir));
-			return iterate();
+// 	return (...args) => {
+// 		return async () => {
+// 			const dir = rootPath.concat(args);
+// 			const {getFixture} = fixtureFactory({rooot: dir});
+// 			const subDirs = readdirSync(joinPath.apply(undefined, dir));
+// 			return iterate();
 
-			async function iterate() {
-				const sub = subDirs.shift();
-				// Const PASSPORT_LOCAL_USERS = `file://${joinPath.apply(undefined, dir)}/${sub}/local.json`;
+// 			async function iterate() {
+// 				const sub = subDirs.shift();
+// 				// Const PASSPORT_LOCAL_USERS = `file://${joinPath.apply(undefined, dir)}/${sub}/local.json`;
 
-				if (sub) {
-					const {
-						descr,
-						skip,
-						state,
-						apiUrl,
-						query
-					} = getData(sub);
+// 				if (sub) {
+// 					const {
+// 						descr,
+// 						skip,
+// 						state,
+// 						apiUrl,
+// 						query
+// 					} = getData(sub);
 
-					if (skip) {
-						it.skip(`${sub} ${descr}`);
-					} else {
-						it(`${sub} ${descr}`, async () => {
-							mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
-							RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
-							RewireAPI.__Rewire__('JOB_STATE', state);
+// 					if (skip) {
+// 						it.skip(`${sub} ${descr}`);
+// 					} else {
+// 						it(`${sub} ${descr}`, async () => {
+// 							mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
+// 							RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
+// 							RewireAPI.__Rewire__('JOB_STATE', state);
 
-							const task = await startTask();
+// 							const task = await startTask();
 
-							await mongoFixtures.populate([sub, 'dbContents.json']);
-							const scope = nock(apiUrl).post('/requests/user', {query: query});
-						});
-					}
-				}
-			}
+// 							await mongoFixtures.populate([sub, 'dbContents.json']);
+// 							const scope = nock(apiUrl).post('/requests/user', {query: query});
+// 						});
+// 					}
+// 				}
+// 			}
 
-			function getData(subDir) {
-				const {descr, skip, state, apiUrl, query} = getFixture({
-					componenets: [subDir, 'metadata.json'],
-					reader: READERS.JSON
-				});
-				return {descr, skip, state, apiUrl, query};
-			}
-		};
-	};
-};
+// 			function getData(subDir) {
+// 				const {descr, skip, state, apiUrl, query} = getFixture({
+// 					componenets: [subDir, 'metadata.json'],
+// 					reader: READERS.JSON
+// 				});
+// 				return {descr, skip, state, apiUrl, query};
+// 			}
+// 		};
+// 	};
+// };

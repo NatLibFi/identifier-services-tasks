@@ -43,5 +43,4 @@ export default function (agenda) {
 	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		await request(done, 'rejected', 'users');
 	});
-	console.log('ppppppppppppppp', agenda);
 }
