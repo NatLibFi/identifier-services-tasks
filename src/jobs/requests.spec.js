@@ -42,7 +42,7 @@ import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import base64 from 'base-64';
-import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
+import startTask, {__RewireAPI__ as RewireAPI} from '..'; // eslint-disable-line import/named
 
 chai.use(chaiNock);
 describe('task', () => {
@@ -67,10 +67,10 @@ describe('task', () => {
 		it('should pass', async () => {
 			mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
 			RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
-			RewireAPI.__Rewire__('JOB_STATE', 'new');
-			const dbContents = getFixture(['users', '0', 'dbContents.json']);
+			RewireAPI.__Rewire__('JOB_STATE', 'accepted');
 
-
+			await mongoFixtures.populate(['users', '0', 'dbContents.json']);
+			const dbExpected = getFixture({components: ['users', '0', 'dbExpected.json']});
 			const response = {
 				offset: '5cd3e9e5f2376736726e4c19',
 				queryDocCount: 1,
@@ -104,15 +104,17 @@ describe('task', () => {
 				.query({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null})
 				.reply(200, response);
 
-			const updateUserRequest = nock('http://localhost:8081')
-				.update('/requests/users/5cd3e9e5f2376736726e4c19')
-				.basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
-				.send({...response.results, backgroundProcessingState: 'processed', initialRequest: true})
-				.reply(201, {...response, results: {...response.results, backgroundProcessingState: 'inProgress'}});
+			// const updateUserRequest = nock('http://localhost:8081')
+			// 	.update('/requests/users/5cd3e9e5f2376736726e4c19')
+			// 	.basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
+			// 	.send({...response.results, backgroundProcessingState: 'processed', initialRequest: true})
+			// 	.reply(201, {...response, results: {...response.results, backgroundProcessingState: 'inProgress'}});
 
-			const task = await startTask()
+			startTask();
+			// task.start();
+			// task.exit();
 			// requester = request(startTask);
-			console.log(task)
+
 		});
 	});
 

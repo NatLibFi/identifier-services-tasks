@@ -92,4 +92,6 @@ export const JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN = 'JOB_REQUEST_BG_PROCE
 export const JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN = 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN';
 
 export const JOB_STATE = readEnvironmentVariable('JOB_STATE', {defaultValue: ['new', 'accepted', 'rejected']});
+export const JOB_TYPE = readEnvironmentVariable('JOB_TYPE', {defaultValue: ['users', 'publishers', 'publications']});
+export const JOB_SUB_TYPE = readEnvironmentVariable('JOB_SUB_TYPE', {defaultValue: ['isbn-ismn', 'issn']});
 export const REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '12 seconds'});

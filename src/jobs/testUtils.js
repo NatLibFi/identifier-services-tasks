@@ -26,17 +26,16 @@
 *
 */
 import chai, {expect} from 'chai';
-import chaiHttp from 'chai-http';
 import nock from 'nock';
+import {chaiNock} from 'chai-nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
-import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
+import startTask, {__RewireAPI__ as RewireAPI} from '../index1'; // eslint-disable-line import/named
 import {readdirSync} from 'fs';
 import {join as joinPath} from 'path';
-chai.use(chaiHttp);
 
+chai.use(chaiNock);
 export default ({rootPath}) => {
-	console.log(rootPath);
 	let requester;
 	let mongoFixtures;
 
@@ -78,7 +77,7 @@ export default ({rootPath}) => {
 							RewireAPI.__Rewire__('JOB_STATE', state);
 
 							const task = await startTask();
-							requester = chai.request(task).keepOpen();
+
 							await mongoFixtures.populate([sub, 'dbContents.json']);
 							const scope = nock(apiUrl).post('/requests/user', {query: query});
 						});

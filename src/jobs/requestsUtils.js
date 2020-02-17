@@ -44,6 +44,7 @@ import {
 const {createLogger, sendEmail} = Utils;
 
 export default async function (done, state, type, subtype) {
+
 	const logger = createLogger();
 
 	const client = createApiClient({
@@ -66,6 +67,7 @@ export default async function (done, state, type, subtype) {
 	}
 
 	async function processCallback(requests, type, subtype) {
+		console.log('%%%%%%%%%%%%%%%%%%%%%%', requests);
 		await Promise.all(requests.map(async request => {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
@@ -124,7 +126,6 @@ export default async function (done, state, type, subtype) {
 			const {requests} = client;
 			switch (type) {
 				case 'users':
-					console.log(payload);
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
 					break;
 				case 'publishers':

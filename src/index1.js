@@ -26,22 +26,10 @@
 *
 */
 
-import {
-	JOB_USER_REQUEST_STATE_NEW,
-	JOB_USER_REQUEST_STATE_ACCEPTED,
-	JOB_USER_REQUEST_STATE_REJECTED
-} from '../config';
-import request from './requestsUtils';
+import startApp from '.';
 
-export default function (agenda) {
-	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		await request(done, 'new', 'users');
-	});
-	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'accepted', 'users');
-	});
-	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'rejected', 'users');
-	});
-	console.log('ppppppppppppppp', agenda);
+run();
+
+async function run() {
+	await startApp();
 }
