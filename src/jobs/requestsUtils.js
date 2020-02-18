@@ -67,7 +67,7 @@ export default async function (done, state, type, subtype) {
 
 	async function processCallback(requests, type, subtype) {
 		await Promise.all(requests.map(async request => {
-			console.log('This is requests', requests);
+
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
@@ -147,6 +147,7 @@ export default async function (done, state, type, subtype) {
 		return perform();
 		async function perform() {
 			if (type === 'users' || type === 'publishers') {
+				console.log(type, query)
 				const response = await requests.fetchList({path: `requests/${type}`, query: query});
 				const result = await response.json();
 				if (result.results) {

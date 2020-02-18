@@ -38,12 +38,14 @@
 
 import chai, {expect} from 'chai';
 import chaiNock from 'chai-nock';
+import chaiHttp from 'chai-http';
 import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import base64 from 'base-64';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
 
+chai.use(chaiHttp);
 chai.use(chaiNock);
 describe('task', () => {
 	let requester;
@@ -66,61 +68,38 @@ describe('task', () => {
 		RewireAPI.__ResetDependency__('JOB_TYPE');
 	});
 
-	describe('#users', () => {
+	describe('#publishers', () => {
 		it('should pass', async () => {
 			mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
 			RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
 			RewireAPI.__Rewire__('JOB_STATE', 'new');
-			RewireAPI.__Rewire__('JOB_TYPE', 'users');
+			RewireAPI.__Rewire__('JOB_TYPE', 'publishers');
 
-			await mongoFixtures.populate(['users', '0', 'dbContents.json']);
-			const dbExpected = getFixture({components: ['users', '0', 'dbExpected.json']});
-			const response = {
-				offset: '5cd3e9e5f2376736726e4c19',
-				queryDocCount: 1,
-				totalDoc: 1,
-				results: [
-					{
-						id: '5cd3e9e5f2376736726e4c19',
-						userId: 'foo.bar@foo.bar',
-						publisher: '5dde33ad22f69862179e3d22',
-						creator: 'pubisher-admin',
-						givenName: 'Barbar',
-						familyName: 'Bar',
-						email: 'foo.bar@foo.bar',
-						state: 'new',
-						backgroundProcessingState: 'pending',
-						notes: ['This is a note'],
-						preferences: {
-							defaultLanguage: 'eng'
-						},
-						lastUpdated: {
-							timestamp: '838383838',
-							user: 'bar'
-						}
-					}
-				]
-			};
-
+			await mongoFixtures.populate(['publishers', '0', 'dbContents.json']);
+			const response = getFixture({components: ['publishers', '0', 'response.json']});
 			nock('http://localhost:8081')
-				.post('/requests/users')
+				.post('/requests/publishers')
 				// .basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
 				.query({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null})
 				.reply(200, response);
 
 			nock('http://localhost:8081')
-				.get('/users/foo.bar@foo.bar')
-				.reply(200, 'foo.bar@foo.bar');
+				.get('/publishers/foo.bar@foo.bar')
+				.reply(200, response.results && response.results[0].email);
 
 			const backgroundProcessingState = ['inProgress', 'processed'];
-			let processedData;
 
 			backgroundProcessingState.forEach(state => {
 				nock('http://localhost:8081')
-					.put('/requests/users/5cd3e9e5f2376736726e4c19', {...response.results, backgroundProcessingState: state, initialRequest: true})
+					.put('/requests/publishers/5cd3e9e5f2376736726e4c19', {...response.results, backgroundProcessingState: state, initialRequest: true})
 					// .basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
 					.reply(201, {...response, results: {...response.results, state: backgroundProcessingState}});
 			});
+
+			requester = chai.request(startTask);
+
+			// await requester.post('/requests/publishers').query({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null});
+
 		});
 	});
 });
