@@ -17,7 +17,7 @@
                 "frequency": 111
             },
             "state": "new",
-            "backgroundProcessingState": "pending",
+            "backgroundProcessingState": "processed",
             "primaryContact": ["foobar", "foo"],			
             "activity":{
                 "active": true,

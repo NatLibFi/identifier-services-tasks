@@ -80,6 +80,15 @@ export default async function ({
 		.on('uncaughtException', handleExit);
 
 	await initDb();
+	// const example = await fetch('http://localhost:8081/requests/publishers', {
+	// 	method: 'POST',
+	// 	// headers: {
+	// 	// 	'Content-Type': 'application/json'
+	// 	// },
+	// 	// body: JSON.stringify({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null})
+	// });
+	// console.log('This is an example ', await example.json())
+
 	const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
 	agenda.on('error', handleExit);
 	agenda.on('ready', () => {

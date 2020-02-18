@@ -30,6 +30,7 @@ import {Utils} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
 import {JWE, JWK, JWT} from 'jose';
 import {createApiClient} from '@natlibfi/identifier-services-commons';
+import {createApiClientUnitTest} from '@natlibfi/identifier-services-commons';
 import {
 	UI_URL,
 	API_URL,
@@ -45,8 +46,11 @@ const {createLogger, sendEmail} = Utils;
 
 export default async function (done, state, type, subtype) {
 	const logger = createLogger();
-
-	const client = createApiClient({
+	// const client = createApiClient({
+	// 	url: API_URL, username: API_USERNAME, password: API_PASSWORD,
+	// 	userAgent: API_CLIENT_USER_AGENT
+	// });
+	const client = createApiClientUnitTest({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
 	});
@@ -66,8 +70,8 @@ export default async function (done, state, type, subtype) {
 	}
 
 	async function processCallback(requests, type, subtype) {
-		await Promise.all(requests.map(async request => {
 
+		await Promise.all(requests.map(async request => {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
@@ -147,9 +151,9 @@ export default async function (done, state, type, subtype) {
 		return perform();
 		async function perform() {
 			if (type === 'users' || type === 'publishers') {
-				console.log(type, query)
 				const response = await requests.fetchList({path: `requests/${type}`, query: query});
 				const result = await response.json();
+				console.log('this is request Utils***********************', result)
 				if (result.results) {
 					logger.log('debug', messageCallback(result.results.length));
 					return processCallback(result.results, type, subtype);

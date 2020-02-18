@@ -38,14 +38,15 @@
 
 import chai, {expect} from 'chai';
 import chaiNock from 'chai-nock';
-import chaiHttp from 'chai-http';
 import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import base64 from 'base-64';
+import {createApiClientUnitTest} from '@natlibfi/identifier-services-commons';
+import {MongoClient, MongoError} from 'mongodb';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
+import * as environments from '../config';
 
-chai.use(chaiHttp);
 chai.use(chaiNock);
 describe('task', () => {
 	let requester;
@@ -55,13 +56,12 @@ describe('task', () => {
 		root: dir,
 		reader: READERS.json
 	});
-	
+
 	after(() => {
 		RewireAPI.__ResetDependency__('MONGO_URI');
 	});
 
 	afterEach(async () => {
-		await mongoFixtures.clear();
 		await mongoFixtures.close();
 		RewireAPI.__ResetDependency__('MONGO_URI');
 		RewireAPI.__ResetDependency__('JOB_STATE');
@@ -77,28 +77,47 @@ describe('task', () => {
 
 			await mongoFixtures.populate(['publishers', '0', 'dbContents.json']);
 			const response = getFixture({components: ['publishers', '0', 'response.json']});
-			nock('http://localhost:8081')
-				.post('/requests/publishers')
-				// .basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
-				.query({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null})
-				.reply(200, response);
+			const payload = getFixture({components: ['publishers', '0', 'payload.json']});
+			const expectedDb = getFixture({components: ['publishers', '0', 'dbExpected.json']});
+			const parseResponse = JSON.parse(response);
+			const query = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
 
+			const scope = nock('http://localhost:8081')
+				.defaultReplyHeaders({
+					'Content-Type': 'application/json'
+				})
+				.post('/requests/publishers/query', query)
+				.reply(200);
+				
 			nock('http://localhost:8081')
-				.get('/publishers/foo.bar@foo.bar')
-				.reply(200, response.results && response.results[0].email);
+				.get('/publishers/5cdff4db937aed356a2b5817')
+				.reply(200, parseResponse.results && parseResponse.results[0].email);
+
+				console.log(scope);
+
 
 			const backgroundProcessingState = ['inProgress', 'processed'];
 
 			backgroundProcessingState.forEach(state => {
 				nock('http://localhost:8081')
-					.put('/requests/publishers/5cd3e9e5f2376736726e4c19', {...response.results, backgroundProcessingState: state, initialRequest: true})
-					// .basicAuth({user: base64.encode('admin'), pass: base64.encode('gM3RsfxAr7e5VwsSPAC6')})
-					.reply(201, {...response, results: {...response.results, state: backgroundProcessingState}});
+					.put('/requests/publishers/5cdff4db937aed356a2b5817', {...parseResponse.results, backgroundProcessingState: state, initialRequest: true})
+					.reply(201, payload);
 			});
 
-			requester = chai.request(startTask);
+			nock('http://localhost:8081')
+				.get('/requests/publishers/5cdff4db937aed356a2b5817')
+				.reply(200, {...parseResponse.results[0], backgroundProcessingState: 'processed', initialRequest: true});
 
-			// await requester.post('/requests/publishers').query({query: [{queries: {query: {state: 'new', backgroundProcessingState: 'pending'}}}], offset: null});
+			await startTask();
+			await poll();
+
+			async function poll() {
+				const db = await mongoFixtures.dump();
+				if (db.PublisherRequest[0].backgroundProcessingState === 'pending') {
+					await setTimeout(() => poll(), 10000);
+					return poll();
+				}
+			}
 
 		});
 	});
