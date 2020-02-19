@@ -80,31 +80,28 @@ describe('task', () => {
 			const parseResponse = JSON.parse(response);
 			const query = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
 
-			const scope = nock('http://localhost:8081')
-				.defaultReplyHeaders({
-					'Content-Type': 'application/json'
-				})
-				.post('/requests/publishers/query', query)
-				.reply(200);
-				
 			nock('http://localhost:8081')
-				.get('/publishers/5cdff4db937aed356a2b5817')
-				.reply(200, parseResponse.results && parseResponse.results[0].email);
+				.matchHeader('Content-Type', 'application/json')
+				.post('/requests/publishers/query', query)
+				.reply(200, response);
 
-				console.log(scope);
+			// nock('http://localhost:8081')
+			// 	.get('/publishers/5cdff4db937aed356a2b5817')
+			// 	.reply(200, parseResponse.results && parseResponse.results[0].email);
 
-
-			const backgroundProcessingState = ['inProgress', 'processed'];
-
-			backgroundProcessingState.forEach(state => {
-				nock('http://localhost:8081')
-					.put('/requests/publishers/5cdff4db937aed356a2b5817', {...parseResponse.results, backgroundProcessingState: state, initialRequest: true})
-					.reply(201, payload);
-			});
+			const inProgressPayload = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
+			console.log(inProgressPayload)
+			const inProgressScope = nock('http://localhost:8081')
+				.matchHeader('Content-Type', 'application/json')
+				.put('/requests/publishers/5cdff4db937aed356a2b5817', inProgressPayload)
+				.reply(201);
+			
+			console.log(inProgressScope)
 
 			nock('http://localhost:8081')
 				.get('/requests/publishers/5cdff4db937aed356a2b5817')
 				.reply(200, {...parseResponse.results[0], backgroundProcessingState: 'processed', initialRequest: true});
+
 
 			await startTask();
 			await poll();

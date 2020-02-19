@@ -70,7 +70,6 @@ export default async function (done, state, type, subtype) {
 	}
 
 	async function processCallback(requests, type, subtype) {
-
 		await Promise.all(requests.map(async request => {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
@@ -132,6 +131,7 @@ export default async function (done, state, type, subtype) {
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
 					break;
 				case 'publishers':
+					console.log('this is request Utils***********************', payload)
 					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
 					break;
 				case 'publications':
@@ -153,7 +153,6 @@ export default async function (done, state, type, subtype) {
 			if (type === 'users' || type === 'publishers') {
 				const response = await requests.fetchList({path: `requests/${type}`, query: query});
 				const result = await response.json();
-				console.log('this is request Utils***********************', result)
 				if (result.results) {
 					logger.log('debug', messageCallback(result.results.length));
 					return processCallback(result.results, type, subtype);
