@@ -32,12 +32,11 @@
 // 		rootPath: [__dirname, '..', '..', 'test-features']
 // 	});
 // 	describe('requests', () => {
-// 		describe('#users', generateTestSuite('requests', 'users'));
+// 		describe('#users', geeTestSuite('requests', 'users'));
 // 	});
 // });
 
 import chai, {expect} from 'chai';
-import chaiNock from 'chai-nock';
 import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
@@ -47,7 +46,6 @@ import {MongoClient, MongoError} from 'mongodb';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
 import * as environments from '../config';
 
-chai.use(chaiNock);
 describe('task', () => {
 	let requester;
 	let mongoFixtures;
