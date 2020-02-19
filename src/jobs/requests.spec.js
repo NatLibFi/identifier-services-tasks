@@ -39,14 +39,16 @@
 import chai, {expect} from 'chai';
 import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
+import {Utils} from '@natlibfi/identifier-services-commons';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import base64 from 'base-64';
 import {MongoClient, MongoError} from 'mongodb';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
-import * as environments from '../config';
+import {API_USERNAME, API_PASSWORD} from '../config';
+
+const {generateAuthorizationHeader} = Utils;
 
 describe('task', () => {
-	let requester;
 	let mongoFixtures;
 	const dir = [__dirname, '..', '..', 'test-fixtures', 'requests'];
 	const {getFixture} = fixtureFactory({
@@ -77,25 +79,37 @@ describe('task', () => {
 			const payload = getFixture({components: ['publishers', '0', 'payload.json']});
 			const expectedDb = getFixture({components: ['publishers', '0', 'dbExpected.json']});
 			const parseResponse = JSON.parse(response);
-			const query = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
-
-			const scope = nock('http://localhost:8081');
-
-			scope.matchHeader('Content-Type', 'application/json')
-				.post('/requests/publishers/query', query)
-				.reply(200, response);
-
-			const {id, ...inProgressPayload} = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
-
-			scope.matchHeader('Content-Type', 'application/json')
-				.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(inProgressPayload))
-				.reply(200, payload);
 
 
 			nock('http://localhost:8081')
-				.get('/requests/publishers/5cdff4db937aed356a2b5817')
-				.reply(200, {...parseResponse.results[0], backgroundProcessingState: 'processed', initialRequest: true});
+				.matchHeader('authorization', `Basic ${base64.encode(API_USERNAME + ':' + API_PASSWORD)}`)
+				.post('/auth')
+				.reply(204);
 
+			const scope = nock('http://localhost:8081', {
+				reqheaders: {
+					'Content-type': 'application/json',
+					Authorization: 'Bearer null'
+				}
+			});
+
+			const pendingQuery = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
+			scope
+				.log(console.log)
+				.post('/requests/publishers/query', JSON.stringify(pendingQuery))
+				.reply(200, response);
+			
+			const inProgressQuery = {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null};
+			scope
+				.log(console.log)
+				.post('/requests/publishers/query', JSON.stringify(inProgressQuery))
+				.reply(200, response);
+
+			const {id, ...inProgressPayload} = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
+			scope
+				.matchHeader('Content-Type', 'application/json')
+				.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(inProgressPayload))
+				.reply(200, payload);
 
 			await startTask();
 			await poll();

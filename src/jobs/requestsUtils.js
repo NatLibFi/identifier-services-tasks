@@ -69,7 +69,7 @@ export default async function (done, state, type, subtype) {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
-					console.log('this is request Utils***********************', request, type)
+					// console.log('this is request Utils***********************', request, type)
 
 					if (type !== 'users') {
 						await sendEmail({
@@ -121,6 +121,7 @@ export default async function (done, state, type, subtype) {
 
 		async function setBackground(request, type, subtype, state) {
 			const payload = {...request, backgroundProcessingState: state};
+			console.log('"""""""""This is a payload*************', payload)
 			delete payload.id;
 			const {requests} = client;
 			switch (type) {
