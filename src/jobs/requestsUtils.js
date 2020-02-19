@@ -30,7 +30,6 @@ import {Utils} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
 import {JWE, JWK, JWT} from 'jose';
 import {createApiClient} from '@natlibfi/identifier-services-commons';
-import {createApiClientUnitTest} from '@natlibfi/identifier-services-commons';
 import {
 	UI_URL,
 	API_URL,
@@ -46,11 +45,7 @@ const {createLogger, sendEmail} = Utils;
 
 export default async function (done, state, type, subtype) {
 	const logger = createLogger();
-	// const client = createApiClient({
-	// 	url: API_URL, username: API_USERNAME, password: API_PASSWORD,
-	// 	userAgent: API_CLIENT_USER_AGENT
-	// });
-	const client = createApiClientUnitTest({
+	const client = createApiClient({
 		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
 		userAgent: API_CLIENT_USER_AGENT
 	});
@@ -74,6 +69,8 @@ export default async function (done, state, type, subtype) {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
+					console.log('this is request Utils***********************', request, type)
+
 					if (type !== 'users') {
 						await sendEmail({
 							name: `${type} request new`,
@@ -131,7 +128,6 @@ export default async function (done, state, type, subtype) {
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
 					break;
 				case 'publishers':
-					console.log('this is request Utils***********************', payload)
 					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
 					break;
 				case 'publications':

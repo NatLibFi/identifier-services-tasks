@@ -41,7 +41,6 @@ import nock from 'nock';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import mongoFixturesFactory from '@natlibfi/fixura-mongo';
 import base64 from 'base-64';
-import {createApiClientUnitTest} from '@natlibfi/identifier-services-commons';
 import {MongoClient, MongoError} from 'mongodb';
 import startTask, {__RewireAPI__ as RewireAPI} from '../index'; // eslint-disable-line import/named
 import * as environments from '../config';
@@ -80,23 +79,18 @@ describe('task', () => {
 			const parseResponse = JSON.parse(response);
 			const query = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
 
-			nock('http://localhost:8081')
-				.matchHeader('Content-Type', 'application/json')
+			const scope = nock('http://localhost:8081');
+
+			scope.matchHeader('Content-Type', 'application/json')
 				.post('/requests/publishers/query', query)
 				.reply(200, response);
 
-			// nock('http://localhost:8081')
-			// 	.get('/publishers/5cdff4db937aed356a2b5817')
-			// 	.reply(200, parseResponse.results && parseResponse.results[0].email);
+			const {id, ...inProgressPayload} = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
 
-			const inProgressPayload = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
-			console.log(inProgressPayload)
-			const inProgressScope = nock('http://localhost:8081')
-				.matchHeader('Content-Type', 'application/json')
-				.put('/requests/publishers/5cdff4db937aed356a2b5817', inProgressPayload)
-				.reply(201);
-			
-			console.log(inProgressScope)
+			scope.matchHeader('Content-Type', 'application/json')
+				.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(inProgressPayload))
+				.reply(200, payload);
+
 
 			nock('http://localhost:8081')
 				.get('/requests/publishers/5cdff4db937aed356a2b5817')
@@ -108,10 +102,13 @@ describe('task', () => {
 
 			async function poll() {
 				const db = await mongoFixtures.dump();
-				if (db.PublisherRequest[0].backgroundProcessingState === 'pending') {
-					await setTimeout(() => poll(), 10000);
-					return poll();
+				if (db.PublisherRequest[0].backgroundProcessingState === 'progressed') {
+					const result = await db.PublisherRequest.find({_id: '5cdff4db937aed356a2b5817'});
+					console.log(result);
 				}
+
+				await setTimeout(() => poll(), 100);
+				return poll();
 			}
 
 		});
