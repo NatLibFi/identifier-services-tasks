@@ -100,7 +100,6 @@ describe('task', () => {
 	// 			.reply(200, response);
 
 	// 		scope
-	// 			.matchHeader('Content-Type', 'application/json')
 	// 			.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(parsePayload))
 	// 			.reply(200, payload);
 
@@ -130,11 +129,11 @@ describe('task', () => {
 			await mongoFixtures.populate(['users', '0', 'dbContents.json']);
 			const queryResponse = getFixture({components: ['users', '0', 'queryResponse.json']});
 			const inProgressPayload = getFixture({components: ['users', '0', 'inProgressPayload.json']});
+			const expectedResult = getFixture({components: ['users', '0', 'expectedResult.json']});
 			const parseInProgressPayload = JSON.parse(inProgressPayload);
-			const {_id, ...query} = parseInProgressPayload.usersRequest[0];
+			const {_id, ...payload} = parseInProgressPayload.usersRequest[0];
 
 			nock('http://localhost:8081')
-				.matchHeader('authorization', `Basic ${base64.encode(API_USERNAME + ':' + API_PASSWORD)}`)
 				.post('/auth')
 				.reply(204);
 
@@ -147,17 +146,15 @@ describe('task', () => {
 
 			const pendingQuery = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
 			scope
-				.post('/requests/users/query', JSON.stringify(pendingQuery))
+				.post('/requests/users/query', JSON.stringify(pendingQuery), body => body.length)
 				.reply(200, queryResponse);
 
 			scope
-				.log(console.log)
-				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify(query))
+				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify(payload), body => body.length)
 				.reply(200, await mongoFixtures.populate(['users', '0', 'inProgressPayload.json']));
 
 			scope
-				.log(console.log)
-				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify({...query, backgroundProcessingState: 'processed'}))
+				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify({...payload, backgroundProcessingState: 'processed'}), body => body.length)
 				.reply(200, await mongoFixtures.populate(['users', '0', 'processedPayload.json']));
 
 			await startTask();
@@ -168,7 +165,6 @@ describe('task', () => {
 
 				if (db.usersRequest[0].backgroundProcessingState === 'processed') {
 					const result = await db.usersRequest[0];
-					const expectedResult = getFixture({components: ['users', '0', 'expectedResult.json']});
 					expect(result).to.eql(JSON.parse(expectedResult));
 				} else {
 					await setTimeout(() => poll(), 100);

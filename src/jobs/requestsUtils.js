@@ -119,7 +119,7 @@ export default async function (done, state, type, subtype) {
 		}));
 
 		async function setBackground(request, type, subtype, state) {
-			const payload = {...request, backgroundProcessingState: state};
+			const payload = {...request, backgroundProcessingState: state, j: true};
 			delete payload.id;
 			const {requests} = client;
 			switch (type) {
