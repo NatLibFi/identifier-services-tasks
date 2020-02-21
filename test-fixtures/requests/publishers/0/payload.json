@@ -1,35 +1,23 @@
 {
-    "offset": "5cdff4db937aed356a2b5817",
-    "queryDocCount": 1,
-    "totalDoc": 1,
-    "results": [
-        {
-            "PublisherRequest": [
-                {
-                    "_id":"5cdff4db937aed356a2b5817",
-                    "lastUpdated":{},
-                    "name": "foo",
-                    "postalAddress": {
-                        "public": false,
-                        "address": "foo",
-                        "city": "foo",
-                        "zip": "foo"
-                    },
-                    "classification": ["foo"],
-                    "metadataDelivery": "foo",
-                    
-                    "publicationDetails": {
-                        "frequency": 111
-                    },
-                    "state": "new",
-                    "backgroundProcessingState": "processed",
-                    "primaryContact": ["foobar", "foo"],			
-                    "activity":{
-                        "active": true,
-                        "yearInactivated": 111
-                    }
-                }
-            ]
-        }
-    ]
+    "lastUpdated":{},
+    "name": "foo",
+    "postalAddress": {
+        "public": false,
+        "address": "foo",
+        "city": "foo",
+        "zip": "foo"
+    },
+    "classification": ["foo"],
+    "metadataDelivery": "foo",
+    
+    "publicationDetails": {
+        "frequency": 111
+    },
+    "state": "new",
+    "backgroundProcessingState": "inProgress",
+    "primaryContact": ["foobar", "foo"],			
+    "activity":{
+        "active": true,
+        "yearInactivated": 111
+    }
 }

@@ -67,19 +67,71 @@ describe('task', () => {
 		RewireAPI.__ResetDependency__('JOB_TYPE');
 	});
 
-	describe('#publishers', () => {
+	// describe('#publishers', () => {
+	// 	it('should pass', async () => {
+	// 		mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
+	// 		RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
+	// 		RewireAPI.__Rewire__('JOB_STATE', 'new');
+	// 		RewireAPI.__Rewire__('JOB_TYPE', 'publishers');
+
+	// 		await mongoFixtures.populate(['publishers', '0', 'dbContents.json']);
+	// 		const response = getFixture({components: ['publishers', '0', 'response.json']});
+	// 		const payload = getFixture({components: ['publishers', '0', 'payload.json']});
+	// 		const expectedDb = getFixture({components: ['publishers', '0', 'dbExpected.json']});
+	// 		const parsePayload = JSON.parse(payload);
+
+
+	// 		nock('http://localhost:8081')
+	// 			.matchHeader('authorization', `Basic ${base64.encode(API_USERNAME + ':' + API_PASSWORD)}`)
+	// 			.post('/auth')
+	// 			.reply(204);
+
+	// 		const scope = nock('http://localhost:8081', {
+	// 			reqheaders: {
+	// 				'Content-type': 'application/json',
+	// 				Authorization: 'Bearer null'
+	// 			}
+	// 		});
+
+	// 		const pendingQuery = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
+	// 		scope
+	// 			.log(console.log)
+	// 			.post('/requests/publishers/query', JSON.stringify(pendingQuery))
+	// 			.reply(200, response);
+
+	// 		scope
+	// 			.matchHeader('Content-Type', 'application/json')
+	// 			.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(parsePayload))
+	// 			.reply(200, payload);
+
+	// 		await startTask();
+	// 		await poll();
+
+	// 		async function poll() {
+	// 			const db = await mongoFixtures.dump();
+	// 			if (db.PublisherRequest[0].backgroundProcessingState === 'progressed') {
+	// 				const result = await db.PublisherRequest.find({_id: '5cdff4db937aed356a2b5817'});
+	// 				console.log(result);
+	// 			}
+
+	// 			await setTimeout(() => poll(), 100);
+	// 			return poll();
+	// 		}
+	// 	});
+	// });
+
+	describe('#users', () => {
 		it('should pass', async () => {
 			mongoFixtures = await mongoFixturesFactory({rootPath: dir, useObjectId: true});
 			RewireAPI.__Rewire__('MONGO_URI', await mongoFixtures.getConnectionString());
 			RewireAPI.__Rewire__('JOB_STATE', 'new');
-			RewireAPI.__Rewire__('JOB_TYPE', 'publishers');
+			RewireAPI.__Rewire__('JOB_TYPE', 'users');
 
-			await mongoFixtures.populate(['publishers', '0', 'dbContents.json']);
-			const response = getFixture({components: ['publishers', '0', 'response.json']});
-			const payload = getFixture({components: ['publishers', '0', 'payload.json']});
-			const expectedDb = getFixture({components: ['publishers', '0', 'dbExpected.json']});
-			const parseResponse = JSON.parse(response);
-
+			await mongoFixtures.populate(['users', '0', 'dbContents.json']);
+			const queryResponse = getFixture({components: ['users', '0', 'queryResponse.json']});
+			const inProgressPayload = getFixture({components: ['users', '0', 'inProgressPayload.json']});
+			const parseInProgressPayload = JSON.parse(inProgressPayload);
+			const {_id, ...query} = parseInProgressPayload.usersRequest[0];
 
 			nock('http://localhost:8081')
 				.matchHeader('authorization', `Basic ${base64.encode(API_USERNAME + ':' + API_PASSWORD)}`)
@@ -95,34 +147,33 @@ describe('task', () => {
 
 			const pendingQuery = {queries: [{query: {state: 'new', backgroundProcessingState: 'pending'}}], offset: null};
 			scope
-				.log(console.log)
-				.post('/requests/publishers/query', JSON.stringify(pendingQuery))
-				.reply(200, response);
-			
-			const inProgressQuery = {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null};
-			scope
-				.log(console.log)
-				.post('/requests/publishers/query', JSON.stringify(inProgressQuery))
-				.reply(200, response);
+				.post('/requests/users/query', JSON.stringify(pendingQuery))
+				.reply(200, queryResponse);
 
-			const {id, ...inProgressPayload} = {...parseResponse.results[0], backgroundProcessingState: 'inProgress'};
 			scope
-				.matchHeader('Content-Type', 'application/json')
-				.put('/requests/publishers/5cdff4db937aed356a2b5817', JSON.stringify(inProgressPayload))
-				.reply(200, payload);
+				.log(console.log)
+				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify(query))
+				.reply(200, await mongoFixtures.populate(['users', '0', 'inProgressPayload.json']));
+
+			scope
+				.log(console.log)
+				.put('/requests/users/5cd3e9e5f2376736726e4c19', JSON.stringify({...query, backgroundProcessingState: 'processed'}))
+				.reply(200, await mongoFixtures.populate(['users', '0', 'processedPayload.json']));
 
 			await startTask();
 			await poll();
 
 			async function poll() {
 				const db = await mongoFixtures.dump();
-				if (db.PublisherRequest[0].backgroundProcessingState === 'progressed') {
-					const result = await db.PublisherRequest.find({_id: '5cdff4db937aed356a2b5817'});
-					console.log(result);
-				}
 
-				await setTimeout(() => poll(), 100);
-				return poll();
+				if (db.usersRequest[0].backgroundProcessingState === 'processed') {
+					const result = await db.usersRequest[0];
+					const expectedResult = getFixture({components: ['users', '0', 'expectedResult.json']});
+					expect(result).to.eql(JSON.parse(expectedResult));
+				} else {
+					await setTimeout(() => poll(), 100);
+					return poll();
+				}
 			}
 
 		});
