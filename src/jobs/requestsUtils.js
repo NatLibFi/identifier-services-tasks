@@ -69,7 +69,7 @@ export default async function (done, state, type, subtype) {
 			await setBackground(request, type, subtype, 'inProgress');
 			switch (request.state) {
 				case 'new':
-					
+
 					if (type !== 'users') {
 						await sendEmail({
 							name: `${type} request new`,
@@ -78,7 +78,7 @@ export default async function (done, state, type, subtype) {
 							API_EMAIL: await getUserEmail(request.creator)
 						});
 					}
-					
+
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
