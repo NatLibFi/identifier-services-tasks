@@ -54,13 +54,17 @@ import {
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
 	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
-	JOB_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING,
+	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
 	REQUEST_TTL,
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
 	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN
+	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN,
+	MELINDA_STATE,
+	MELINDA_JOB_TYPE
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -100,21 +104,38 @@ export default function () {
 				createRequestPublicationIssn(agenda);
 				createRequestPublicationIsbnIsmn(agenda);
 
-				if (Array.isArray(JOB_STATE)) {
-					JOB_STATE.forEach(state => {
-						createAgenda(state);
-					});
-				} else {
-					createAgenda(JOB_STATE);
+				createAgendaFromArray(JOB_STATE);
+				createAgendaFromArray(MELINDA_STATE);
+
+				function createAgendaFromArray(state) {
+					if (Array.isArray(state)) {
+						state.forEach(subState => {
+							if (state === MELINDA_STATE) {
+								createMelindaAgenda(subState);
+							}
+
+							if (state === JOB_STATE) {
+								createAgenda(subState);
+							}
+						});
+					} else {
+						if (state === MELINDA_STATE) {
+							createMelindaAgenda(state);
+						}
+
+						if (state === JOB_STATE) {
+							createAgenda(state);
+						}
+					}
 				}
 
-				agenda.every(JOB_FREQ_PENDING, JOB_BIBLIOGRAPHIC_METADATA_PENDING, undefined, opts);
-				agenda.every(JOB_FREQ_IN_PROGRESS, JOB_BIBLIOGRAPHIC_METADATA_INPROGRESS, undefined, opts);
-				agenda.every(
-					REQUEST_TTL,
-					isArray(JOB_TYPE, JOB_SUB_TYPE, undefined, selectCleanUpType),
-					undefined,
-					opts
+				setTimeout(() =>
+					agenda.every(
+						REQUEST_TTL,
+						createJobArray(JOB_TYPE, JOB_SUB_TYPE, undefined, selectCleanUpType),
+						undefined,
+						opts
+					), Number(REQUEST_TTL.split(' ')[0]) * 1000
 				);
 
 				agenda.start();
@@ -123,7 +144,7 @@ export default function () {
 					if (state === 'new') {
 						agenda.every(
 							JOB_FREQ_REQUEST_STATE_NEW,
-							isArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
+							createJobArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
 							undefined,
 							opts
 						);
@@ -132,7 +153,7 @@ export default function () {
 					if (state === 'accepted') {
 						agenda.every(
 							JOB_FREQ_REQUEST_STATE_ACCEPTED,
-							isArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
+							createJobArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
 							{},
 							opts
 						);
@@ -141,14 +162,32 @@ export default function () {
 					if (state === 'rejected') {
 						agenda.every(
 							JOB_FREQ_REQUEST_STATE_REJECTED,
-							isArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
+							createJobArray(JOB_TYPE, JOB_SUB_TYPE, state, selectRequestAgendaType),
 							undefined,
 							opts
 						);
 					}
 				}
 
-				function isArray(type, subType, state, callback) {
+				function createMelindaAgenda(state) {
+					if (state === 'pending') {
+						agenda.every(
+							JOB_FREQ_PENDING,
+							createJobArray(MELINDA_JOB_TYPE, undefined, state, selectMelindaJobType),
+							undefined,
+							opts);
+					}
+
+					if (state === 'inProgress') {
+						agenda.every(
+							JOB_FREQ_IN_PROGRESS,
+							createJobArray(MELINDA_JOB_TYPE, undefined, state, selectMelindaJobType),
+							undefined,
+							opts);
+					}
+				}
+
+				function createJobArray(type, subType, state, callback) {
 					if (Array.isArray(type)) {
 						return type.reduce((acc, t) => {
 							if (t === 'publications' && Array.isArray(subType)) {
@@ -236,6 +275,28 @@ export default function () {
 
 						if (subType === 'issn') {
 							return JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN;
+						}
+					}
+				}
+
+				function selectMelindaJobType(metadataState, type) {
+					if (metadataState === 'pending') {
+						if (type === 'isbn-ismn') {
+							return JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING;
+						}
+
+						if (type === 'issn') {
+							return JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING;
+						}
+					}
+
+					if (metadataState === 'inProgress') {
+						if (type === 'isbn-ismn') {
+							return JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS;
+						}
+
+						if (type === 'issn') {
+							return JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS;
 						}
 					}
 				}
