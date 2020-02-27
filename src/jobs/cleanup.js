@@ -51,16 +51,16 @@ export default async function (agenda) {
 	});
 
 	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, {concurrency: 1}, async (_, done) => {
-		await request(done, 'users');
+		request(done, 'users');
 	});
 	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, {concurrency: 1}, async (_, done) => {
-		await request(done, 'publishers');
+		request(done, 'publishers');
 	});
 	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, {concurrency: 1}, async (_, done) => {
-		await request(done, 'publications/isbn-ismn');
+		request(done, 'publications/isbn-ismn');
 	});
 	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
-		await request(done, 'publications/issn');
+		request(done, 'publications/issn');
 	});
 
 	async function request(done, type) {

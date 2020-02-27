@@ -62,19 +62,19 @@ export default function (agenda) {
 	});
 
 	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
-		await request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'isbn-ismn');
+		request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'isbn-ismn');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
-		await request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'isbn-ismn');
+		request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'isbn-ismn');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
-		await request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'issn');
+		request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'issn');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
-		await request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'issn');
+		request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'issn');
 	});
 
 	async function request(done, state, type) {

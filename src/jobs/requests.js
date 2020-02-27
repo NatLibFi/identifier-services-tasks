@@ -64,43 +64,43 @@ export default function (agenda) {
 	});
 
 	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		await request(done, 'new', 'users');
+		request(done, 'new', 'users');
 	});
 	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'accepted', 'users');
+		request(done, 'accepted', 'users');
 	});
 	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'rejected', 'users');
+		request(done, 'rejected', 'users');
 	});
 
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		await request(done, 'new', 'publishers');
+		request(done, 'new', 'publishers');
 	});
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'accepted', 'publishers');
+		request(done, 'accepted', 'publishers');
 	});
 	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'rejected', 'publishers');
+		request(done, 'rejected', 'publishers');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		await request(done, 'new', 'publications', 'isbn-ismn');
+		request(done, 'new', 'publications', 'isbn-ismn');
 	});
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'accepted', 'publications', 'isbn-ismn');
+		request(done, 'accepted', 'publications', 'isbn-ismn');
 	});
 	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'rejected', 'publications', 'isbn-ismn');
+		request(done, 'rejected', 'publications', 'isbn-ismn');
 	});
 
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		await request(done, 'new', 'publications', 'issn');
+		request(done, 'new', 'publications', 'issn');
 	});
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'accepted', 'publications', 'issn');
+		request(done, 'accepted', 'publications', 'issn');
 	});
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		await request(done, 'rejected', 'publications', 'issn');
+		request(done, 'rejected', 'publications', 'issn');
 	});
 
 	async function request(done, state, type, subtype) {
@@ -133,6 +133,12 @@ export default function (agenda) {
 						});
 					}
 
+					await sendEmail({
+						name: `${type} request new`,
+						getTemplate: getTemplate,
+						SMTP_URL: SMTP_URL,
+						API_EMAIL: API_EMAIL
+					});
 					await setBackground(request, type, subtype, 'processed');
 					break;
 
@@ -176,6 +182,7 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			delete payload.id;
 			const {requests} = client;
+			
 			switch (type) {
 				case 'users':
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
@@ -222,6 +229,7 @@ export default function (agenda) {
 	async function createResource(request, type, subtype) {
 		const {update} = client.requests;
 		const payload = await create(request, type, subtype);
+
 		delete payload.id;
 		switch (type) {
 			case 'users':
