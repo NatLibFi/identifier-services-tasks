@@ -182,7 +182,7 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			delete payload.id;
 			const {requests} = client;
-			
+
 			switch (type) {
 				case 'users':
 					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
