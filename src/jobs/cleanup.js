@@ -96,9 +96,7 @@ export default async function (agenda) {
 		}
 
 		async function processRequests(filteredRequests) {
-			await Promise.all(filteredRequests.map(async request => {
-				await setBackground(request, 'pending');
-			}));
+			await Promise.all(filteredRequests.map(request => request !== null && setBackground(request, 'pending')));
 
 			async function setBackground(request, state) {
 				const payload = {...request, backgroundProcessingState: state};
