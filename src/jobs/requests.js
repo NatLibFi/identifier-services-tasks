@@ -102,8 +102,10 @@ export default function (agenda) {
 	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
 		request(done, 'rejected', 'publications', 'issn');
 	});
-
+	
 	async function request(done, state, type, subtype) {
+	console.log('-------------------->', JOB_USER_REQUEST_STATE_NEW)
+
 		try {
 			await getRequests();
 		} finally {

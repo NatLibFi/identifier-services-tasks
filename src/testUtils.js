@@ -33,7 +33,7 @@ import fixtureFactory, {READERS} from '@natlibfi/fixura';
 import {readdirSync} from 'fs';
 import {join as joinPath} from 'path';
 
-import {MONGO_URI, TZ, MAX_CONCURRENCY, API_URL} from './config';
+import {API_URL} from './config';
 import startTask, {__RewireAPI__ as RewireAPI} from './app'; // eslint-disable-line
 
 const setTimeoutPromise = promisify(setTimeout);
@@ -107,13 +107,10 @@ export default ({rootPath}) => {
 							}
 
 							setTimeout(() => {
-								if (nock.pendingMocks().length) {
-									nock.cleanAll();
-									scope.done();
-								}
+								scope.done();
 							}, timeout);
 
-							startTask({MONGO_URI, TZ, MAX_CONCURRENCY, JOBS});
+							startTask();
 							await poll();
 
 							async function poll() {
@@ -140,15 +137,15 @@ export default ({rootPath}) => {
 				}
 
 				function getData(subD) {
-					const {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip} = getFixture({
+					const {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, timeoutPromise, skip} = getFixture({
 						components: [subD, 'metadata.json'],
 						reader: READERS.JSON
 					});
 					if (getHttpRequest) {
-						return {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip};
+						return {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, timeoutPromise, skip};
 					}
 
-					return {descr, httpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip};
+					return {descr, httpRequest, reqheader, JOBS, timeout, timeoutPromise, skip};
 				}
 			}
 		};

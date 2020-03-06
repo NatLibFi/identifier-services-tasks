@@ -27,7 +27,6 @@
 */
 import {Utils} from '@natlibfi/identifier-services-commons';
 import startTask from './app';
-import {MONGO_URI, TZ, MAX_CONCURRENCY,	JOBS} from './config';
 const {handleInterrupt} = Utils;
 
 run();
@@ -36,7 +35,7 @@ async function run() {
 	let task;
 	try {
 		interuptionHandlers();
-		task = await startTask({MONGO_URI, TZ, MAX_CONCURRENCY, JOBS});
+		task = await startTask();
 	} catch (error) {
 		if (error) {
 			process.exit(1);
