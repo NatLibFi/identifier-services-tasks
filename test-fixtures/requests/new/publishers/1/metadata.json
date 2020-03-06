@@ -1,0 +1,48 @@
+{
+    "descr": "should sucessfully processed a request",
+    "httpRequest": [
+        {
+            "url": "/requests/users/query",
+            "method": "post",
+            "responseStatus": 200,
+            "responseBody": "queryResponse.json"
+        },
+        {
+            "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+            "method": "put",
+            "responseStatus": 200
+        },
+        {
+            "url": "/templates/query",
+            "method": "post",
+            "responseStatus": 200,
+            "responseBody": "templatesPostResponse.json"
+        },
+        {
+            "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+            "method": "put",
+            "responseStatus": 200
+        }
+    ],
+    "getHttpRequest": [
+        {
+            "url": "/templates/5e5e07f0616dc6f5bdb9eee9",
+            "method": "get",
+            "responseStatus": 200,
+            "responseBody": "templatesGetResponse.json"
+        }
+    ],
+    "reqheader": {
+        "Authorization": "Bearer null",
+        "contentType": "Content-type"
+    },
+    "JOBS": [
+        {
+            "jobFreq": "JOB_FREQ_REQUEST_STATE_NEW",
+            "jobName": "JOB_USER_REQUEST_STATE_NEW"
+        }
+    ],
+    "pendingMock": "/requests/users/5cd3e9e5f2376736726e4c19",
+    "timeout": 45,
+    "timeoutPromise": 35
+}

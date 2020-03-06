@@ -26,120 +26,17 @@
 *
 */
 
-import nock from 'nock';
-import {promisify} from 'util';
-import {MongoMemoryServer} from 'mongodb-memory-server';
-import fixtureFactory, {READERS} from '@natlibfi/fixura';
-import {MONGO_URI, TZ, MAX_CONCURRENCY, JOB_FREQ_REQUEST_STATE_NEW, JOBS, API_URL} from '../config';
-import startTask, {__RewireAPI__ as RewireAPI} from '../app'; // eslint-disable-line
+import testSuitFactory from '../testUtils';
 
-const setTimeoutPromise = promisify(setTimeout);
-
-describe('task', () => {
-	let mongoServer;
-	const dir = [__dirname, '..', '..', 'test-fixtures', 'requests'];
-	const {getFixture} = fixtureFactory({
-		root: dir,
-		reader: READERS.json
+describe('backgroundTask', () => {
+	const generateTestSuite = testSuitFactory({
+		rootPath: [__dirname, '..', '..', 'test-fixtures', 'requests']
 	});
 
-	beforeEach(async () => {
-		mongoServer = new MongoMemoryServer();
-		RewireAPI.__Rewire__('MONGO_URI', await mongoServer.getConnectionString());
-		nock('http://localhost:8081')
-			.post('/auth')
-			.reply(204);
-	});
-
-	afterEach(async () => {
-		await mongoServer.stop();
-		RewireAPI.__ResetDependency__('MONGO_URI');
-		RewireAPI.__ResetDependency__('JOBS');
-	});
-
-	describe('#users', () => {
-		it('should no update when the reply is empty', async () => {
-			RewireAPI.__Rewire__('JOBS', [{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW'}]);
-			const scope = nock('http://localhost:8081', {
-				reqheaders: {
-					'Content-type': 'application/json',
-					Authorization: 'Bearer null'
-				}
-			})
-				// .log(console.log)
-				.post('/requests/users/query')
-				.reply(200, {})
-				.put('/requests/users/5cd3e9e5f2376736726e4c19')
-				.reply(200, {test: 'test'});
-
-			const pendingMocks = '/requests/users/5cd3e9e5f2376736726e4c19';
-
-			setTimeout(() => {
-				if (nock.pendingMocks().includes(`PUT ${API_URL}${pendingMocks}`)) {
-					nock.cleanAll();
-					scope.done();
-				}
-			}, 45);
-
-			startTask({MONGO_URI, TZ, MAX_CONCURRENCY, JOBS});
-			await poll();
-
-			async function poll() {
-				if (!nock.isDone()) {
-					await setTimeoutPromise(35);
-					return poll();
-				}
-			}
-		});
-
-		it('should sucessfully processed a request', async () => {
-			RewireAPI.__Rewire__('JOBS', [{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW'}]);
-			const queryResponse = getFixture({components: ['users', '0', 'queryResponse.json']});
-			const templatesPostResponse = getFixture({components: ['users', '0', 'templatesPostResponse.json']});
-			const templatesGetResponse = getFixture({components: ['users', '0', 'templatesGetResponse.json']});
-
-			const scope = nock('http://localhost:8081', {
-				reqheaders: {
-					'Content-type': 'application/json',
-					Authorization: 'Bearer null'
-				}
-			})
-				.log(console.log)
-				.post('/requests/users/query')
-				.reply(200, queryResponse)
-				.put('/requests/users/5cd3e9e5f2376736726e4c19')
-				.reply(200)
-				.post('/templates/query')
-				.reply(200, templatesPostResponse)
-				.put('/requests/users/5cd3e9e5f2376736726e4c19')
-				// .twice()
-				.reply(200);
-
-			const scopeGet = nock('http://localhost:8081', {
-				reqheaders: {
-					accept: 'application/json',
-					Authorization: 'Bearer null'
-				}
-			})
-				.get('/templates/5e5e07f0616dc6f5bdb9eee9')
-				.reply(200, templatesGetResponse);
-
-			setTimeout(() => {
-				scope.done();
-				scopeGet.done();
-			}, 200);
-
-			startTask({MONGO_URI, TZ, MAX_CONCURRENCY, JOBS});
-			await poll();
-
-			async function poll() {
-				if (!nock.isDone()) {
-					await setTimeoutPromise(100);
-					return poll();
-				}
-
-				return nock.isDone();
-			}
-		});
+	describe('requests', () => {
+		describe('#new Users', generateTestSuite('new', 'users'));
+		describe('#new Publishers', generateTestSuite('new', 'publishers'));
+		describe('#new Publications isbn-ismn', generateTestSuite('new', 'publications', 'isbn-ismn'));
+		describe('#new Publications issn', generateTestSuite('new', 'publications', 'issn'));
 	});
 });
