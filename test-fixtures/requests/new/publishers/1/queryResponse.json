@@ -5,28 +5,22 @@
     "results": [
         {
             "id": "5cd3e9e5f2376736726e4c19",
-			"lastUpdated":{
-				"timestamp":"foo",
-				"user": "foo"
-			},
-			"name": "foo",
-			"postalAddress": {
-				"public": false,
-				"address": "foo",
-				"city": "foo",
-				"zip": "foo"
-			},
-			"classification": ["foo"],
-			"metadataDelivery": "foo",
-			
-			"publicationDetails": {
-				"frequency": 111
-			},
-			"primaryContact": ["foobar", "foo"],			
-			"activity":{
-				"active": true,
-				"yearInactivated": 111
-			}
+            "userId": "foo.bar@foo.bar",
+            "publisher": "5dde33ad22f69862179e3d22",
+            "creator": "5dde33ad22f6986217111111",
+            "givenName": "Barbar",
+            "familyName": "Bar",
+            "email": "foo.bar@foo.bar",
+            "state": "new",
+            "backgroundProcessingState": "processed",
+            "notes":["This is a note"],
+            "preferences": {
+                "defaultLanguage": "eng"
+            },
+            "lastUpdated": {
+                "timestamp": "838383838",
+                "user": "bar"
+            }
         }
     ]
 }

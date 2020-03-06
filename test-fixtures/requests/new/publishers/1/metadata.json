@@ -2,13 +2,13 @@
     "descr": "should sucessfully processed a request",
     "httpRequest": [
         {
-            "url": "/requests/users/query",
+            "url": "/requests/publishers/query",
             "method": "post",
             "responseStatus": 200,
             "responseBody": "queryResponse.json"
         },
         {
-            "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+            "url": "/requests/publishers/5cd3e9e5f2376736726e4c19",
             "method": "put",
             "responseStatus": 200
         },
@@ -19,7 +19,7 @@
             "responseBody": "templatesPostResponse.json"
         },
         {
-            "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+            "url": "/requests/publishers/5cd3e9e5f2376736726e4c19",
             "method": "put",
             "responseStatus": 200
         }
@@ -30,19 +30,34 @@
             "method": "get",
             "responseStatus": 200,
             "responseBody": "templatesGetResponse.json"
+        },
+        {
+            "url": "/users/5dde33ad22f6986217111111",
+            "method": "get",
+            "responseStatus": 200,
+            "responseBody": "userInfoResponse.json"
         }
     ],
     "reqheader": {
         "Authorization": "Bearer null",
-        "contentType": "Content-type"
+        "contentType": "Content-type",
+        "body": {
+            "queries": [
+                {
+                    "query": {
+                        "name": "publishers request new"
+                    },
+                    "offset": null
+                }
+            ]
+        }
     },
     "JOBS": [
         {
-            "jobFreq": "JOB_FREQ_REQUEST_STATE_NEW",
-            "jobName": "JOB_USER_REQUEST_STATE_NEW"
+            "jobFreq": "10 seconds",
+            "jobName": "JOB_PUBLISHER_REQUEST_STATE_NEW"
         }
     ],
-    "pendingMock": "/requests/users/5cd3e9e5f2376736726e4c19",
-    "timeout": 45,
-    "timeoutPromise": 35
+    "timeout": 200,
+    "timeoutPromise": 111
 }

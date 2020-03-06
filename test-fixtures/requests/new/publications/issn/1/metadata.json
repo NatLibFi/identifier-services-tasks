@@ -42,7 +42,7 @@
             "jobName": "JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW"
         }
     ],
-    "pendingMock": "/requests/publications/issn/5cd3e9e5f2376736726e4c19",
     "timeout": 45,
-    "timeoutPromise": 35
+    "timeoutPromise": 35,
+    "skip": true
 }

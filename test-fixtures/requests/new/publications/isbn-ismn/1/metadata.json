@@ -38,11 +38,10 @@
     },
     "JOBS": [
         {
-            "jobFreq": "JOB_FREQ_REQUEST_STATE_NEW",
+            "jobFreq": "10 seconds",
             "jobName": "JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW"
         }
     ],
-    "pendingMock": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
     "timeout": 45,
     "timeoutPromise": 35
 }

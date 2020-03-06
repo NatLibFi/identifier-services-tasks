@@ -4,8 +4,12 @@
         {
             "url": "/requests/publications/isbn-ismn/query",
             "method": "post",
-            "responseStatus": 200,
-            "responseBody": "queryResponse.json"
+            "responseStatus": 200
+        },
+        {
+            "url": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
+            "method": "put",
+            "responseStatus": 200
         }
     ],
     "reqheader": {
@@ -14,11 +18,14 @@
     },
     "JOBS": [
         {
-            "jobFreq": "JOB_FREQ_REQUEST_STATE_NEW",
+            "jobFreq": "10 seconds",
             "jobName": "JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW"
         }
     ],
-    "pendingMock": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
+    "pendingMock": {
+        "url": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
+        "method": "PUT"
+    },
     "timeout": 40,
     "timeoutPromise": 35
 }

@@ -26,7 +26,7 @@
 *
 */
 
-import nock from 'nock';
+import nock, { pendingMocks } from 'nock';
 import {promisify} from 'util';
 import {MongoMemoryServer} from 'mongodb-memory-server';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
@@ -50,6 +50,7 @@ export default ({rootPath}) => {
 	});
 
 	afterEach(async () => {
+		await mongoServer.stop();
 		RewireAPI.__ResetDependency__('MONGO_URI');
 		RewireAPI.__ResetDependency__('JOBS');
 	});
@@ -76,6 +77,7 @@ export default ({rootPath}) => {
 						getHttpRequest,
 						reqheader,
 						JOBS,
+						pendingMock,
 						timeout,
 						timeoutPromise,
 						skip
@@ -86,34 +88,51 @@ export default ({rootPath}) => {
 					} else {
 						it(`${subD} ${descr}`, async () => {
 							RewireAPI.__Rewire__('JOBS', JOBS);
-
-							const scope = nock(API_URL, {
-								reqheaders: {
-									[`${reqheader.contentType}`]: 'application/json',
-									Authorization: `${reqheader.Authorization}`
-								}
-							});
+							const scope = reqheader.body ?
+								nock(API_URL, {
+									reqheaders: {
+										[`${reqheader.contentType}`]: 'application/json',
+										Authorization: `${reqheader.Authorization}`
+									},
+									body: JSON.stringify(reqheader.body)
+								}) :
+								nock(API_URL, {
+									reqheaders: {
+										[`${reqheader.contentType}`]: 'application/json',
+										Authorization: `${reqheader.Authorization}`
+									}
+								});
 
 							formatScope({subD, scope, requests: httpRequest});
 
 							if (getHttpRequest) {
-								nock(API_URL, {
+								const scopeGet = nock(API_URL, {
 									reqheaders: {
 										accept: 'application/json',
 										Authorization: `${reqheader.Authorization}`
 									}
-								});
-								formatScope({subD, scope, requests: getHttpRequest});
+								}).log(console.log)
+
+								formatScope({subD, scope: scopeGet, requests: getHttpRequest});
 							}
 
 							setTimeout(() => {
-								scope.done();
+								if (pendingMock) {
+									const nockPending = nock.pendingMocks();
+									if (nockPending.length === 1 && `${pendingMock.method} ${API_URL}${pendingMock.url}` === nockPending[0]) {
+										nock.cleanAll();
+										scope.done();
+									}
+								} else if (nock.pendingMocks().length === 0) {
+									scope.done();
+								}
 							}, timeout);
-
+							
 							startTask();
 							await poll();
-
+							
 							async function poll() {
+								// console.log(nock.pendingMocks())
 								if (!nock.isDone()) {
 									await setTimeoutPromise(timeoutPromise);
 									return poll();
@@ -137,10 +156,18 @@ export default ({rootPath}) => {
 				}
 
 				function getData(subD) {
-					const {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, timeoutPromise, skip} = getFixture({
+					const {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip} = getFixture({
 						components: [subD, 'metadata.json'],
 						reader: READERS.JSON
 					});
+					if (pendingMock) {
+						if (getHttpRequest) {
+							return {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip};
+						}
+
+						return {descr, httpRequest, reqheader, JOBS, pendingMock, timeout, timeoutPromise, skip};
+					}
+
 					if (getHttpRequest) {
 						return {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, timeoutPromise, skip};
 					}

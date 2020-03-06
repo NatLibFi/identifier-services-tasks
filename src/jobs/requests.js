@@ -104,8 +104,6 @@ export default function (agenda) {
 	});
 	
 	async function request(done, state, type, subtype) {
-	console.log('-------------------->', JOB_USER_REQUEST_STATE_NEW)
-
 		try {
 			await getRequests();
 		} finally {
@@ -467,6 +465,7 @@ export default function (agenda) {
 		}
 
 		cache[key] = await client.templates.getTemplate(query);
+		console.log(cache[key]);
 		return cache[key];
 	}
 
