@@ -317,7 +317,7 @@ export default function (agenda) {
 					const publicationList = await resPublication.json();
 
 					const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
-					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication})});
+					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
 					delete response._id;
 					const newRequest = {...request, ...response};
 					logger.log('info', `Resource for ${type}${subtype} has been created`);
