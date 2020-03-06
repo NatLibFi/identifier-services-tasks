@@ -465,7 +465,6 @@ export default function (agenda) {
 		}
 
 		cache[key] = await client.templates.getTemplate(query);
-		console.log(cache[key]);
 		return cache[key];
 	}
 

@@ -88,20 +88,12 @@ export default ({rootPath}) => {
 					} else {
 						it(`${subD} ${descr}`, async () => {
 							RewireAPI.__Rewire__('JOBS', JOBS);
-							const scope = reqheader.body ?
-								nock(API_URL, {
-									reqheaders: {
-										[`${reqheader.contentType}`]: 'application/json',
-										Authorization: `${reqheader.Authorization}`
-									},
-									body: JSON.stringify(reqheader.body)
-								}) :
-								nock(API_URL, {
-									reqheaders: {
-										[`${reqheader.contentType}`]: 'application/json',
-										Authorization: `${reqheader.Authorization}`
-									}
-								});
+							const scope = nock(API_URL, {
+								reqheaders: {
+									[`${reqheader.contentType}`]: 'application/json',
+									Authorization: `${reqheader.Authorization}`
+								}
+							});
 
 							formatScope({subD, scope, requests: httpRequest});
 
@@ -111,7 +103,7 @@ export default ({rootPath}) => {
 										accept: 'application/json',
 										Authorization: `${reqheader.Authorization}`
 									}
-								}).log(console.log)
+								}).log(console.log);
 
 								formatScope({subD, scope: scopeGet, requests: getHttpRequest});
 							}
@@ -127,12 +119,11 @@ export default ({rootPath}) => {
 									scope.done();
 								}
 							}, timeout);
-							
+
 							startTask();
 							await poll();
-							
+
 							async function poll() {
-								// console.log(nock.pendingMocks())
 								if (!nock.isDone()) {
 									await setTimeoutPromise(timeoutPromise);
 									return poll();
@@ -148,8 +139,16 @@ export default ({rootPath}) => {
 					requests.forEach(request => {
 						if (request.responseBody) {
 							const queryResponse = getFixture({components: [subD, request.responseBody], reader: READERS.JSON});
+							if (request.times) {
+								scope[request.method](`${request.url}`).times(request.times).reply(request.responseStatus, queryResponse);
+							}
+
 							scope[request.method](`${request.url}`).reply(request.responseStatus, queryResponse);
 						} else {
+							if (request.times) {
+								scope[request.method](`${request.url}`).times(request.times).reply(request.responseStatus);
+							}
+
 							scope[request.method](`${request.url}`).reply(request.responseStatus);
 						}
 					});
