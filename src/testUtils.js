@@ -26,7 +26,7 @@
 *
 */
 
-import nock, { pendingMocks } from 'nock';
+import nock from 'nock';
 import {promisify} from 'util';
 import {MongoMemoryServer} from 'mongodb-memory-server';
 import fixtureFactory, {READERS} from '@natlibfi/fixura';
