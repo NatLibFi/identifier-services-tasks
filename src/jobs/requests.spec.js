@@ -36,7 +36,7 @@ describe('backgroundTask', () => {
 	describe('requests', () => {
 		describe('#new Users', generateTestSuite('new', 'users'));
 		describe('#new Publishers', generateTestSuite('new', 'publishers'));
-		// describe('#new Publications isbn-ismn', generateTestSuite('new', 'publications', 'isbn-ismn'));
-		// describe('#new Publications issn', generateTestSuite('new', 'publications', 'issn'));
+		describe('#new Publications issn', generateTestSuite('new', 'publications', 'issn'));
+		describe('#new Publications isbn-ismn', generateTestSuite('new', 'publications', 'isbn-ismn'));
 	});
 });

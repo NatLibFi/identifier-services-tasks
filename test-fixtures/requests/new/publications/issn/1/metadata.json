@@ -16,7 +16,8 @@
             "url": "/templates/query",
             "method": "post",
             "responseStatus": 200,
-            "responseBody": "templatesPostResponse.json"
+            "responseBody": "templatesPostResponse.json",
+            "times": 1
         },
         {
             "url": "/requests/publications/issn/5cd3e9e5f2376736726e4c19",
@@ -29,7 +30,14 @@
             "url": "/templates/5e5e07f0616dc6f5bdb9eee9",
             "method": "get",
             "responseStatus": 200,
-            "responseBody": "templatesGetResponse.json"
+            "responseBody": "templatesGetResponse.json",
+            "times": 1
+        },
+        {
+            "url": "/users/5dde33ad22f6986217111111",
+            "method": "get",
+            "responseStatus": 200,
+            "responseBody": "userGetResponse.json"
         }
     ],
     "reqheader": {
@@ -38,11 +46,10 @@
     },
     "JOBS": [
         {
-            "jobFreq": "JOB_FREQ_REQUEST_STATE_NEW",
+            "jobFreq": "10 seconds",
             "jobName": "JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW"
         }
     ],
-    "timeout": 45,
-    "timeoutPromise": 35,
-    "skip": true
+    "timeout": 500,
+    "timeoutPromise": 50
 }

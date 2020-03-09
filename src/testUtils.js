@@ -50,7 +50,6 @@ export default ({rootPath}) => {
 	});
 
 	afterEach(async () => {
-		await mongoServer.stop();
 		RewireAPI.__ResetDependency__('MONGO_URI');
 		RewireAPI.__ResetDependency__('JOBS');
 	});
@@ -103,7 +102,7 @@ export default ({rootPath}) => {
 										accept: 'application/json',
 										Authorization: `${reqheader.Authorization}`
 									}
-								}).log(console.log);
+								});
 
 								formatScope({subD, scope: scopeGet, requests: getHttpRequest});
 							}
@@ -140,13 +139,13 @@ export default ({rootPath}) => {
 						if (request.responseBody) {
 							const queryResponse = getFixture({components: [subD, request.responseBody], reader: READERS.JSON});
 							if (request.times) {
-								scope[request.method](`${request.url}`).times(request.times).reply(request.responseStatus, queryResponse);
+								scope[request.method](`${request.url}`).times(1).reply(request.responseStatus, queryResponse);
 							}
 
 							scope[request.method](`${request.url}`).reply(request.responseStatus, queryResponse);
 						} else {
 							if (request.times) {
-								scope[request.method](`${request.url}`).times(request.times).reply(request.responseStatus);
+								scope[request.method](`${request.url}`).times(1).reply(request.responseStatus);
 							}
 
 							scope[request.method](`${request.url}`).reply(request.responseStatus);
