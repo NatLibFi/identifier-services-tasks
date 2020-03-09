@@ -24,7 +24,7 @@
     "check-deps": "npm-check;exit 0",
     "lint:dev": "eslint --fix src",
     "lint": "eslint src",
-    "test:base": "cross-env NODE_ENV=test nyc mocha -t 50000 --exit --require @babel/register",
+    "test:base": "cross-env NODE_ENV=test nyc mocha -t 20000 --exit --require @babel/register",
     "test": "npm run lint",
     "test:dev": "npm run test:base -- src/jobs/*.spec.js && npm run coverage",
     "coverage": "nyc check-coverage --per-file",
