@@ -65,6 +65,7 @@ export default async function () {
 		agenda.start();
 	});
 	return agenda;
+
 	async function initDb() {
 		const db = Mongo.db();
 		try {

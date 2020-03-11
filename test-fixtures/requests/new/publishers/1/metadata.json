@@ -50,6 +50,6 @@
             "jobName": "JOB_PUBLISHER_REQUEST_STATE_NEW"
         }
     ],
-    "timeout": 500,
-    "timeoutPromise": 200
+    "timeout": 210,
+    "pollFrequency": 200
 }

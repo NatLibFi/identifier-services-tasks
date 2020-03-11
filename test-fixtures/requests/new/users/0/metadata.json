@@ -28,5 +28,5 @@
         "method": "PUT"
     },
     "timeout": 45,
-    "timeoutPromise": 35
+    "pollFrequency": 35
 }

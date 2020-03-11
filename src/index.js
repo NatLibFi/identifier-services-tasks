@@ -32,15 +32,8 @@ const {handleInterrupt} = Utils;
 run();
 
 async function run() {
-	let task;
-	try {
-		interuptionHandlers();
-		task = await startTask();
-	} catch (error) {
-		if (error) {
-			process.exit(1);
-		}
-	}
+	interuptionHandlers();
+	const task = await startTask();
 
 	async function interuptionHandlers() {
 		process

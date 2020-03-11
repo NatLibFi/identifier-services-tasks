@@ -122,59 +122,53 @@ export default function (agenda) {
 	async function processCallback(requests, type, subtype) {
 		await Promise.all(requests.map(async request => {
 			await setBackground(request, type, subtype, 'inProgress');
-			switch (request.state) {
-				case 'new':
-					if (type !== 'users') {
-						await sendEmail({
-							name: `${type} request new`,
-							getTemplate: getTemplate,
-							SMTP_URL: SMTP_URL,
-							API_EMAIL: await getUserEmail(request.creator)
-						});
-					}
-
+			if (request.state === 'new') {
+				if (type !== 'users') {
 					await sendEmail({
 						name: `${type} request new`,
 						getTemplate: getTemplate,
 						SMTP_URL: SMTP_URL,
-						API_EMAIL: API_EMAIL
+						API_EMAIL: await getUserEmail(request.creator)
 					});
-					await setBackground(request, type, subtype, 'processed');
-					break;
+				}
 
-				case 'rejected':
+				await sendEmail({
+					name: `${type} request new`,
+					getTemplate: getTemplate,
+					SMTP_URL: SMTP_URL,
+					API_EMAIL: API_EMAIL
+				});
+				await setBackground(request, type, subtype, 'processed');
+			}
+
+			if (request.state === 'rejected') {
+				await sendEmail({
+					name: `${type} request rejected`,
+					args: request.rejectionReason,
+					getTemplate: getTemplate,
+					SMTP_URL: SMTP_URL,
+					API_EMAIL: await getUserEmail(request.creator)
+				});
+				await setBackground(request, type, subtype, 'processed');
+			}
+
+			if (request.state === 'accepted') {
+				try {
+					await createResource(request, type, subtype);
+				} catch (error) {
+					logger.log('error', `${error}`);
+				}
+
+				if (type !== 'users') {
 					await sendEmail({
-						name: `${type} request rejected`,
-						args: request.rejectionReason,
+						name: `${type} request accepted`,
 						getTemplate: getTemplate,
 						SMTP_URL: SMTP_URL,
 						API_EMAIL: await getUserEmail(request.creator)
 					});
-					await setBackground(request, type, subtype, 'processed');
-					break;
+				}
 
-				case 'accepted':
-					try {
-						await createResource(request, type, subtype);
-					} catch (error) {
-						logger.log('error', `${error}`);
-						break;
-					}
-
-					if (type !== 'users') {
-						await sendEmail({
-							name: `${type} request accepted`,
-							getTemplate: getTemplate,
-							SMTP_URL: SMTP_URL,
-							API_EMAIL: await getUserEmail(request.creator)
-						});
-					}
-
-					await setBackground(request, type, subtype, 'processed');
-					break;
-
-				default:
-					break;
+				await setBackground(request, type, subtype, 'processed');
 			}
 		}));
 
@@ -182,20 +176,16 @@ export default function (agenda) {
 			const payload = {...request, backgroundProcessingState: state};
 			delete payload.id;
 			const {requests} = client;
+			if (type === 'users') {
+				await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
+			}
 
-			switch (type) {
-				case 'users':
-					await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
-					break;
-				case 'publishers':
-					await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
-					break;
-				case 'publications':
-					await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
-					break;
+			if (type === 'publishers') {
+				await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
+			}
 
-				default:
-					break;
+			if (type === 'publications') {
+				await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
 			}
 
 			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
@@ -231,22 +221,19 @@ export default function (agenda) {
 		const payload = await create(request, type, subtype);
 
 		delete payload.id;
-		switch (type) {
-			case 'users':
-				await update({path: `requests/${type}/${request.id}`, payload: payload});
-				logger.log('info', `${type} requests updated for ${request.id} `);
-				break;
-			case 'publishers':
-				await update({path: `requests/${type}/${request.id}`, payload: payload});
-				logger.log('info', `${type} requests updated for ${request.id} `);
-				break;
-			case 'publications':
-				await update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
-				logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
-				break;
+		if (type === 'users') {
+			await update({path: `requests/${type}/${request.id}`, payload: payload});
+			logger.log('info', `${type} requests updated for ${request.id} `);
+		}
 
-			default:
-				break;
+		if (type === 'publishers') {
+			await update({path: `requests/${type}/${request.id}`, payload: payload});
+			logger.log('info', `${type} requests updated for ${request.id} `);
+		}
+
+		if (type === 'publications') {
+			await update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
+			logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
 		}
 
 		return null;
@@ -285,54 +272,46 @@ export default function (agenda) {
 		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
 		const {users, publishers, publications, ranges} = client;
 		const {update} = client.requests;
-		switch (type) {
-			case 'users': {
-				await users.create({path: type, payload: formatUsers(request)});
-				const response = await users.read(`${type}/${request.email}`);
-				await sendEmailToCreator(type, request, response);
-				await createLinkAndSendEmail(type, request, response);
-				logger.log('info', `Resource for ${type} has been created`);
+		if (type === 'users') {
+			await users.create({path: type, payload: formatUsers(request)});
+			const response = await users.read(`${type}/${request.email}`);
+			await sendEmailToCreator(type, request, response);
+			await createLinkAndSendEmail(type, request, response);
+			logger.log('info', `Resource for ${type} has been created`);
+			delete response._id;
+			const newRequest = {...request, ...response};
+			return newRequest;
+		}
+
+		if (type === 'publishers') {
+			const response = await publishers.create({path: type, payload: formatPublisher(request)});
+			logger.log('info', `Resource for ${type} has been created`);
+			delete response._id;
+			const newRequest = {...request, ...response};
+			return newRequest;
+		}
+
+		if (type === 'publications') {
+			// Fetch ranges
+			const identifierLists = await determineIdentifierList();
+			if (identifierLists.results.length === 0) {
+				logger.log('info', 'No Active Ranges Found');
+			} else {
+				const activeRange = identifierLists.results[0];
+				// Fetch Publication Issn
+				const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+				const publicationList = await resPublication.json();
+
+				const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
+				const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
 				delete response._id;
 				const newRequest = {...request, ...response};
-				return newRequest;
-			}
-
-			case 'publishers': {
-				const response = await publishers.create({path: type, payload: formatPublisher(request)});
-				logger.log('info', `Resource for ${type} has been created`);
-				delete response._id;
-				const newRequest = {...request, ...response};
-				return newRequest;
-			}
-
-			case 'publications': {
-				// Fetch ranges
-				const identifierLists = await determineIdentifierList();
-				if (identifierLists.results.length === 0) {
-					logger.log('info', 'No Active Ranges Found');
-				} else {
-					const activeRange = identifierLists.results[0];
-					// Fetch Publication Issn
-					const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-					const publicationList = await resPublication.json();
-
-					const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
-					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
-					delete response._id;
-					const newRequest = {...request, ...response};
-					logger.log('info', `Resource for ${type}${subtype} has been created`);
-					if (subtype === 'issn') {
-						isLastInRange(newPublication, activeRange, update, subtype);
-					}
-
-					return newRequest;
+				logger.log('info', `Resource for ${type}${subtype} has been created`);
+				if (subtype === 'issn') {
+					isLastInRange(newPublication, activeRange, update, subtype);
 				}
 
-				break;
-			}
-
-			default: {
-				return null;
+				return newRequest;
 			}
 		}
 
@@ -390,13 +369,12 @@ export default function (agenda) {
 	}
 
 	async function calculateNewIdentifier({identifierList, subtype}) {
-		switch (subtype) {
-			case 'issn':
-				return calculateNewISSN(identifierList);
-			case 'isbnIsmn':
-				return 'newIdentifier';
-			default:
-				return null;
+		if (subtype === 'issn') {
+			return calculateNewISSN(identifierList);
+		}
+
+		if (subtype === 'isbnIsmn') {
+			return 'newIdentifier';
 		}
 	}
 

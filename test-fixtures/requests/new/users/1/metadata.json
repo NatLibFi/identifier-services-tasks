@@ -42,6 +42,6 @@
             "jobName": "JOB_USER_REQUEST_STATE_NEW"
         }
     ],
-    "timeout": 200,
-    "timeoutPromise": 111
+    "timeout": 100,
+    "pollFrequency": 90
 }
