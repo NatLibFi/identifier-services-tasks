@@ -28,5 +28,6 @@
         "method": "PUT"
     },
     "timeout": 45,
-    "pollFrequency": 35
+    "pollFrequency": 35,
+    "skip": true
 }

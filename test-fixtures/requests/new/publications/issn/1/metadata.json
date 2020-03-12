@@ -17,7 +17,7 @@
             "method": "post",
             "responseStatus": 200,
             "responseBody": "templatesPostResponse.json",
-            "times": 1
+            "twice": true
         },
         {
             "url": "/requests/publications/issn/5cd3e9e5f2376736726e4c19",
@@ -31,7 +31,7 @@
             "method": "get",
             "responseStatus": 200,
             "responseBody": "templatesGetResponse.json",
-            "times": 1
+            "twice": true
         },
         {
             "url": "/users/5dde33ad22f6986217111111",
@@ -50,6 +50,6 @@
             "jobName": "JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW"
         }
     ],
-    "timeout": 500,
-    "pollFrequency": 50
+    "timeout": 200,
+    "pollFrequency": 100
 }

@@ -43,5 +43,5 @@
         }
     ],
     "timeout": 100,
-    "pollFrequency": 90
+    "pollFrequency": 50
 }

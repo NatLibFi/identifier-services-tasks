@@ -44,6 +44,7 @@ export default ({rootPath}) => {
 	beforeEach(async () => {
 		MongoServer = await getMongoMethods();
 		RewireAPI.__Rewire__('MONGO_URI', await MongoServer.getConnectionString());
+		nock.cleanAll();
 		nock(API_URL)
 			.post('/auth')
 			.reply(204);
@@ -64,122 +65,113 @@ export default ({rootPath}) => {
 			return iterate();
 
 			async function iterate() {
-				const subD = subDirs.shift();
+				subDirs.forEach(subD => {
+					if (subD) {
+						const {
+							descr,
+							httpRequest,
+							getHttpRequest,
+							reqheader,
+							JOBS,
+							pendingMock,
+							timeout,
+							pollFrequency,
+							skip
+						} = getData(subD);
 
-				if (subD) {
-					const {
-						descr,
-						httpRequest,
-						getHttpRequest,
-						reqheader,
-						JOBS,
-						pendingMock,
-						timeout,
-						pollFrequency,
-						skip
-					} = getData(subD);
+						if (skip) {
+							return it.skip(`${subD} ${descr}`);
+						}
 
-					if (skip) {
-						it.skip(`${subD} ${descr}`);
-						return;
-					}
+						it(`${subD} ${descr}`, async () => {
+							RewireAPI.__Rewire__('JOBS', JOBS);
 
-					it(`${subD} ${descr}`, async () => {
-						RewireAPI.__Rewire__('JOBS', JOBS);
-						const scope = nock(API_URL, {
-							reqheaders: {
-								[`${reqheader.contentType}`]: 'application/json',
-								Authorization: `${reqheader.Authorization}`
-							}
-						}).log(console.log)
+							const scope = nock(API_URL, {
+								reqheaders: {
+									[`${reqheader.contentType}`]: 'application/json',
+									Authorization: `${reqheader.Authorization}`
+								}
+							}).log(console.log);
 
-						formatScope({subD, scope, requests: httpRequest});
-
-						let scopeGet;
-						if (getHttpRequest) {
-							scopeGet = nock(API_URL, {
+							const scopeGet = getHttpRequest && nock(API_URL, {
 								reqheaders: {
 									accept: 'application/json',
 									Authorization: `${reqheader.Authorization}`
 								}
-							}).log(console.log)
+							}).log(console.log);
 
-							return formatScope({subD, scope: scopeGet, requests: getHttpRequest});
-						}
+							mockRequest({subD, scope, scopeGet, httpRequest, getHttpRequest});
 
-						const agenda = await startTask();
+							setTimeout(async () => {
+								if (pendingMock) {
+									const nockPending = nock.pendingMocks();
+									if (nockPending.length === 1 && `${pendingMock.method} ${API_URL}${pendingMock.url}` === nockPending[0]) {
+										nock.cleanAll();
+										return;
+									}
+								}
 
-						setTimeout(async () => {
-							if (pendingMock) {
-								const nockPending = nock.pendingMocks();
-								if (nockPending.length === 1 && `${pendingMock.method} ${API_URL}${pendingMock.url}` === nockPending[0]) {
-									nock.cleanAll();
-									await agenda.stop();
+								if (nock.pendingMocks().length === 0) {
+									scopeGet.done();
 									return scope.done();
 								}
-							}
+							}, timeout);
 
-							if (nock.pendingMocks().length === 0) {
-								await agenda.stop();
-								return scope.done();
-							}
-
+							const agenda = await startTask();
+							await poll();
 							await agenda.stop();
-							nock.cleanAll();
-						}, timeout);
 
-						await poll();
-
-
-						async function poll() {
-							if (nock.isDone() === false) {
-								await setTimeoutPromise(pollFrequency);
-								return poll();
+							async function poll() {
+								if (nock.isDone() === false) {
+									await setTimeoutPromise(pollFrequency);
+									return poll();
+								}
 							}
-						}
-					});
+						});
+					}
 
-					return iterate();
-				}
-
-				function formatScope({subD, scope, requests}) {
-					requests.forEach(request => {
-						if (request.responseBody) {
-							const queryResponse = getFixture({components: [subD, request.responseBody], reader: READERS.JSON});
-							if (request.times) {
-								return scope[request.method](`${request.url}`).times(1).reply(request.responseStatus, queryResponse);
+					function normalMockRequest({subD, scope, requests}) {
+						return requests.forEach(request => {
+							const newScope = request.twice ? scope[request.method](`${request.url}`).twice() : scope[request.method](`${request.url}`);
+							if (request.responseBody) {
+								const queryResponse = getFixture({components: [subD, request.responseBody], reader: READERS.JSON});
+								return newScope.reply(request.responseStatus, queryResponse);
 							}
 
-							return scope[request.method](`${request.url}`).reply(request.responseStatus, queryResponse);
+							return newScope.reply(request.responseStatus);
+						});
+					}
+
+					function mockRequest({subD, scope, scopeGet, httpRequest, getHttpRequest}) {
+						if (scopeGet) {
+							normalMockRequest({subD, scope: scope, requests: httpRequest});
+							normalMockRequest({subD, scope: scopeGet, requests: getHttpRequest});
+							return;
 						}
 
-						if (request.times) {
-							return scope[request.method](`${request.url}`).times(1).reply(request.responseStatus);
+						return normalMockRequest({subD, scope: scope, requests: httpRequest});
+					}
+
+					function getData(subD) {
+						const {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip} = getFixture({
+							components: [subD, 'metadata.json'],
+							reader: READERS.JSON
+						});
+						if (pendingMock) {
+							if (getHttpRequest) {
+								return {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
+							}
+
+							return {descr, httpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
 						}
 
-						return scope[request.method](`${request.url}`).reply(request.responseStatus);
-					});
-				}
-
-				function getData(subD) {
-					const {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip} = getFixture({
-						components: [subD, 'metadata.json'],
-						reader: READERS.JSON
-					});
-					if (pendingMock) {
 						if (getHttpRequest) {
-							return {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
+							return {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
 						}
 
-						return {descr, httpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
+						return {descr, httpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
 					}
-
-					if (getHttpRequest) {
-						return {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
-					}
-
-					return {descr, httpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
-				}
+				})
 			}
 		};
 	};
