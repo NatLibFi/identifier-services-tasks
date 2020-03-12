@@ -307,8 +307,7 @@ export default function (agenda) {
 					// Fetch Publication Issn
 					const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
 					const publicationList = await resPublication.json();
-
-					const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
+					const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype, rangePrefix: activeRange.prefix});
 					const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
 					delete response._id;
 					const newRequest = {...request, ...response};
@@ -381,10 +380,10 @@ export default function (agenda) {
 		return result;
 	}
 
-	async function calculateNewIdentifier({identifierList, subtype}) {
+	async function calculateNewIdentifier({identifierList, subtype, rangePrefix}) {
 		switch (subtype) {
 			case 'issn':
-				return calculateNewISSN(identifierList);
+				return calculateNewISSN(identifierList, rangePrefix);
 			case 'isbnIsmn':
 				return 'newIdentifier';
 			default:
@@ -392,9 +391,7 @@ export default function (agenda) {
 		}
 	}
 
-	function calculateNewISSN(array) {
-		// Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
-		const prefix = array[0].slice(0, 4);
+	function calculateNewISSN(array, prefix) {
 		const slicedRange = array.map(item => item.slice(5, 8));
 		// Get 3 digit of 2nd half from the highest identifier and adding 1 to it
 		const range = Math.max(...slicedRange) + 1;
