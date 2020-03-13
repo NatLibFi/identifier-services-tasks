@@ -83,7 +83,7 @@ export default ({rootPath}) => {
 							return it.skip(`${subD} ${descr}`);
 						}
 
-						it(`${subD} ${descr}`, async () => {
+						return it(`${subD} ${descr}`, async () => {
 							RewireAPI.__Rewire__('JOBS', JOBS);
 
 							const scope = nock(API_URL, {
@@ -157,21 +157,17 @@ export default ({rootPath}) => {
 							components: [subD, 'metadata.json'],
 							reader: READERS.JSON
 						});
+						const result = getHttpRequest ?
+							{descr, httpRequest, reqheader, JOBS, timeout, pollFrequency, skip, getHttpRequest} :
+							{descr, httpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
+
 						if (pendingMock) {
-							if (getHttpRequest) {
-								return {descr, httpRequest, getHttpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
-							}
-
-							return {descr, httpRequest, reqheader, JOBS, pendingMock, timeout, pollFrequency, skip};
+							return {...result, pendingMock};
 						}
 
-						if (getHttpRequest) {
-							return {descr, httpRequest, getHttpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
-						}
-
-						return {descr, httpRequest, reqheader, JOBS, timeout, pollFrequency, skip};
+						return result;
 					}
-				})
+				});
 			}
 		};
 	};
@@ -192,7 +188,7 @@ export default ({rootPath}) => {
 				const {childProcess} = Mongo.getInstanceInfo();
 
 				if (childProcess && !childProcess.killed) {
-					await Mongo.stop();
+					return Mongo.stop();
 				}
 			}
 		};
