@@ -34,7 +34,9 @@ import {
 	MONGO_URI,
 	TZ,
 	MAX_CONCURRENCY,
-	JOBS
+	REQUEST_JOBS,
+	CLEAN_UP_JOBS,
+	MELINDA_JOBS
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
@@ -58,7 +60,13 @@ export default async function () {
 		createMelindaJobs(agenda);
 		createCleanupJobs(agenda);
 
-		JOBS.forEach(job => {
+		REQUEST_JOBS.forEach(job => {
+			agenda.every(job.jobFreq, job.jobName, undefined, opts);
+		});
+		CLEAN_UP_JOBS.forEach(job => {
+			agenda.every(job.jobFreq, job.jobName, undefined, opts);
+		});
+		MELINDA_JOBS.forEach(job => {
 			agenda.every(job.jobFreq, job.jobName, undefined, opts);
 		});
 

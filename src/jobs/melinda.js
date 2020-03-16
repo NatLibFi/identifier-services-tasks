@@ -34,10 +34,7 @@ import {
 	JOB_BACKGROUND_PROCESSING_PENDING,
 	JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
 	JOB_BACKGROUND_PROCESSING_PROCESSED,
-	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
-	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING,
-	JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS,
+	MELINDA_JOBS,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
@@ -61,20 +58,10 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
-		request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'isbn-ismn');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
-		request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'isbn-ismn');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING, {concurrency: 1}, async (_, done) => {
-		request(done, JOB_BACKGROUND_PROCESSING_PENDING, 'issn');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS, {concurrency: 1}, async (_, done) => {
-		request(done, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, 'issn');
+	MELINDA_JOBS.forEach(job => {
+		agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
+			request(done, job.jobState, job.jobCategory);
+		});
 	});
 
 	async function request(done, state, type) {
@@ -109,38 +96,37 @@ export default function (agenda) {
 	}
 
 	async function processCallback(requests, state, type) {
-		switch (state) {
-			case JOB_BACKGROUND_PROCESSING_PENDING:
-				await Promise.all(requests.map(async request => {
+		if (state === JOB_BACKGROUND_PROCESSING_PENDING) {
+			await Promise.all(requests.map(async request => {
+			console.log('1111111111111111', requests)
 				// Create a new blob in Melinda's record import system
-					const blobId = await melindaClient.createBlob({
-						blob: JSON.stringify(requests),
-						type: 'application/json',
-						profile: MELINDA_RECORD_IMPORT_PROFILE
-					});
-					logger.log('info', `Created new blob ${blobId}`);
-					await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type);
-				}));
-				return;
+				const blobId = await melindaClient.createBlob({
+					blob: JSON.stringify(requests),
+					type: 'application/json',
+					profile: MELINDA_RECORD_IMPORT_PROFILE
+				});
+				logger.log('info', `Created new blob ${blobId}`);
+				await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type);
+			}));
+			return;
+		}
 
-			case JOB_BACKGROUND_PROCESSING_IN_PROGRESS:
-				await Promise.all(requests.map(async request => {
+		if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
+			await Promise.all(requests.map(async request => {
 				// ==> Retrieve the blob metadata from Melinda's record import system
-					const blobId = request.metadataReference.id;
-					const response = await melindaClient.getBlobMetadata({id: blobId});
-					if (response.state === 'PROCESSED') {
-						if (response.processingInfo.importResults[0].status === 'DUPLICATE') {
-							const newId = response.processingInfo.importResults[0].metadata.matches[0];
-							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
-						} else {
-							const newId = response.processingInfo.importResults[0].metadata.id;
-							await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
-						}
+				const blobId = request.metadataReference.id;
+				const response = await melindaClient.getBlobMetadata({id: blobId});
+				console.log('eddddddddddddd', response)
+				if (response.state === 'PROCESSED') {
+					if (response.processingInfo.importResults[0].status === 'DUPLICATE') {
+						const newId = response.processingInfo.importResults[0].metadata.matches[0];
+						await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
+					} else {
+						const newId = response.processingInfo.importResults[0].metadata.id;
+						await setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, newId, type);
 					}
-				}));
-				return;
-			default:
-				return null;
+				}
+			}));
 		}
 
 		async function setBackground(request, state, blobId, type) {

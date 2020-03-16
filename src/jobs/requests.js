@@ -34,18 +34,7 @@ import {
 	UI_URL,
 	API_URL,
 	SMTP_URL,
-	JOB_USER_REQUEST_STATE_NEW,
-	JOB_USER_REQUEST_STATE_ACCEPTED,
-	JOB_USER_REQUEST_STATE_REJECTED,
-	JOB_PUBLISHER_REQUEST_STATE_NEW,
-	JOB_PUBLISHER_REQUEST_STATE_ACCEPTED,
-	JOB_PUBLISHER_REQUEST_STATE_REJECTED,
-	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW,
-	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED,
-	JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED,
-	JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW,
-	JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED,
-	JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED,
+	REQUEST_JOBS,
 	API_CLIENT_USER_AGENT,
 	API_PASSWORD,
 	API_USERNAME,
@@ -63,44 +52,10 @@ export default function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_USER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		request(done, 'new', 'users');
-	});
-	agenda.define(JOB_USER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'accepted', 'users');
-	});
-	agenda.define(JOB_USER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'rejected', 'users');
-	});
-
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		request(done, 'new', 'publishers');
-	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'accepted', 'publishers');
-	});
-	agenda.define(JOB_PUBLISHER_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'rejected', 'publishers');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		request(done, 'new', 'publications', 'isbn-ismn');
-	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'accepted', 'publications', 'isbn-ismn');
-	});
-	agenda.define(JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'rejected', 'publications', 'isbn-ismn');
-	});
-
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW, {concurrency: 1}, async (_, done) => {
-		request(done, 'new', 'publications', 'issn');
-	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'accepted', 'publications', 'issn');
-	});
-	agenda.define(JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED, {concurrency: 1}, async (_, done) => {
-		request(done, 'rejected', 'publications', 'issn');
+	REQUEST_JOBS.forEach(job => {
+		agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
+			request(done, job.jobState, job.jobCategory, job.jobSubCat);
+		});
 	});
 
 	async function request(done, state, type, subtype) {

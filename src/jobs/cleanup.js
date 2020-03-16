@@ -32,10 +32,7 @@ import {
 	API_USERNAME,
 	API_PASSWORD,
 	API_CLIENT_USER_AGENT,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN,
-	JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN,
+	CLEAN_UP_JOBS,
 	REQUEST_TTL
 } from '../config';
 const {createLogger} = Utils;
@@ -50,17 +47,11 @@ export default async function (agenda) {
 		userAgent: API_CLIENT_USER_AGENT
 	});
 
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_USERS, {concurrency: 1}, async (_, done) => {
-		request(done, 'users');
-	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS, {concurrency: 1}, async (_, done) => {
-		request(done, 'publishers');
-	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN, {concurrency: 1}, async (_, done) => {
-		request(done, 'publications/isbn-ismn');
-	});
-	agenda.define(JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN, {concurrency: 1}, async (_, done) => {
-		request(done, 'publications/issn');
+	CLEAN_UP_JOBS.forEach(job => {
+		const type = job.jobSubCat ? `${job.jobCategory}/${job.jobSubCat}` : job.jobCategory;
+		agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
+			request(done, type);
+		});
 	});
 
 	async function request(done, type) {
