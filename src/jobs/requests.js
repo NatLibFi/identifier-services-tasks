@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /**
 *
 * @licstart  The following is the entire license notice for the JavaScript code in this file.
@@ -426,6 +427,8 @@ export default function (agenda) {
       return cache[key];
     }
 
+    // eslint-disable-next-line functional/immutable-data
+    // eslint-disable-next-line require-atomic-updates
     cache[key] = await client.templates.getTemplate(query);
     return cache[key];
   }
