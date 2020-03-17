@@ -26,384 +26,413 @@
 *
 */
 
-import {Utils} from '@natlibfi/identifier-services-commons';
+import {Utils, createApiClient} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
 import {JWE, JWK, JWT} from 'jose';
-import {createApiClient} from '@natlibfi/identifier-services-commons';
 import {
-	UI_URL,
-	API_URL,
-	SMTP_URL,
-	REQUEST_JOBS,
-	API_CLIENT_USER_AGENT,
-	API_PASSWORD,
-	API_USERNAME,
-	PRIVATE_KEY_URL,
-	API_EMAIL
+  UI_URL,
+  API_URL,
+  SMTP_URL,
+  REQUEST_JOBS,
+  API_CLIENT_USER_AGENT,
+  API_PASSWORD,
+  API_USERNAME,
+  PRIVATE_KEY_URL,
+  API_EMAIL
 } from '../config';
 
 const {createLogger, sendEmail} = Utils;
 
+// eslint-disable-next-line max-statements
 export default function (agenda) {
-	const logger = createLogger();
+  const logger = createLogger();
 
-	const client = createApiClient({
-		url: API_URL, username: API_USERNAME, password: API_PASSWORD,
-		userAgent: API_CLIENT_USER_AGENT
-	});
+  const client = createApiClient({
+    url: API_URL, username: API_USERNAME, password: API_PASSWORD,
+    userAgent: API_CLIENT_USER_AGENT
+  });
 
-	REQUEST_JOBS.forEach(job => {
-		agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
-			request(done, job.jobState, job.jobCategory, job.jobSubCat);
-		});
-	});
+  REQUEST_JOBS.forEach(job => {
+    agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
+      request(done, job.jobState, job.jobCategory, job.jobSubCat);
+    });
+  });
 
-	async function request(done, state, type, subtype) {
-		try {
-			await getRequests();
-		} finally {
-			done();
-		}
+  async function request(done, state, type, subtype) {
+    try {
+      await getRequests();
+    } finally {
+      done();
+    }
 
-		async function getRequests() {
-			await processRequest({
-				client, processCallback,
-				query: {queries: [{query: {state: state, backgroundProcessingState: 'pending'}}], offset: null},
-				messageCallback: count => `${count} requests are pending`, type: type, subtype: subtype
-			});
-		}
-	}
+    async function getRequests() {
+      await processRequest({
+        client, processCallback,
+        query: {queries: [{query: {state, backgroundProcessingState: 'pending'}}], offset: null},
+        messageCallback: count => `${count} requests are pending`, type, subtype
+      });
+    }
+  }
 
-	async function processCallback(requests, type, subtype) {
-		await Promise.all(requests.map(async request => {
-			await setBackground(request, type, subtype, 'inProgress');
-			if (request.state === 'new') {
-				if (type !== 'users') {
-					await sendEmail({
-						name: `${type} request new`,
-						getTemplate: getTemplate,
-						SMTP_URL: SMTP_URL,
-						API_EMAIL: await getUserEmail(request.creator)
-					});
-				}
+  async function processCallback(requests, type, subtype) {
+    // eslint-disable-next-line max-statements
+    await Promise.all(requests.map(async request => {
+      await setBackground(request, type, subtype, 'inProgress');
+      if (request.state === 'new') {
+        if (type !== 'users') {
+          await sendEmail({
+            name: `${type} request new`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL: await getUserEmail(request.creator)
+          });
+          await sendEmail({
+            name: `${type} request new`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL
+          });
 
-				await sendEmail({
-					name: `${type} request new`,
-					getTemplate: getTemplate,
-					SMTP_URL: SMTP_URL,
-					API_EMAIL: API_EMAIL
-				});
-				await setBackground(request, type, subtype, 'processed');
-			}
+          return setBackground(request, type, subtype, 'processed');
+        }
 
-			if (request.state === 'rejected') {
-				await sendEmail({
-					name: `${type} request rejected`,
-					args: request.rejectionReason,
-					getTemplate: getTemplate,
-					SMTP_URL: SMTP_URL,
-					API_EMAIL: await getUserEmail(request.creator)
-				});
-				await setBackground(request, type, subtype, 'processed');
-			}
+        await sendEmail({
+          name: `${type} request new`,
+          getTemplate,
+          SMTP_URL,
+          API_EMAIL
+        });
+        return setBackground(request, type, subtype, 'processed');
+      }
 
-			if (request.state === 'accepted') {
-				try {
-					await createResource(request, type, subtype);
-				} catch (error) {
-					logger.log('error', `${error}`);
-				}
+      if (request.state === 'rejected') {
+        await sendEmail({
+          name: `${type} request rejected`,
+          args: request.rejectionReason,
+          getTemplate,
+          SMTP_URL,
+          API_EMAIL: await getUserEmail(request.creator)
+        });
+        return setBackground(request, type, subtype, 'processed');
+      }
 
-				if (type !== 'users') {
-					await sendEmail({
-						name: `${type} request accepted`,
-						getTemplate: getTemplate,
-						SMTP_URL: SMTP_URL,
-						API_EMAIL: await getUserEmail(request.creator)
-					});
-				}
+      if (request.state === 'accepted') {
+        try {
+          await createResource(request, type, subtype);
+        } catch (error) {
+          logger.log('error', `${error}`);
+        }
 
-				await setBackground(request, type, subtype, 'processed');
-			}
-		}));
+        if (type !== 'users') {
+          await sendEmail({
+            name: `${type} request accepted`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL: await getUserEmail(request.creator)
+          });
+          return setBackground(request, type, subtype, 'processed');
+        }
 
-		async function setBackground(request, type, subtype, state) {
-			const payload = {...request, backgroundProcessingState: state};
-			delete payload.id;
-			const {requests} = client;
-			if (type === 'users') {
-				await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
-			}
+        return setBackground(request, type, subtype, 'processed');
+      }
+    }));
 
-			if (type === 'publishers') {
-				await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
-			}
+    // eslint-disable-next-line max-statements
+    async function setBackground(request, type, subtype, state) {
+      const payload = {...request, backgroundProcessingState: state};
+      // eslint-disable-next-line functional/immutable-data
+      delete payload.id;
+      const {requests} = client;
+      if (type === 'users') {
+        await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
+        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 
-			if (type === 'publications') {
-				await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
-			}
+      }
 
-			logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-		}
-	}
+      if (type === 'publishers') {
+        await requests.update({path: `requests/${type}/${request.id}`, payload});
+        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+      }
 
-	async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
-		const {requests} = client;
-		return perform();
-		async function perform() {
-			if (type === 'users' || type === 'publishers') {
-				const response = await requests.fetchList({path: `requests/${type}`, query: query});
-				const result = await response.json();
-				if (result.results) {
-					logger.log('debug', messageCallback(result.results.length));
-					return processCallback(result.results, type, subtype);
-				}
-			}
+      if (type === 'publications') {
+        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload});
+        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+      }
 
-			if (type === 'publications') {
-				const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query: query});
-				const result = await response.json();
-				if (result.results) {
-					logger.log('debug', messageCallback(result.results.length));
-					return processCallback(result.results, type, subtype);
-				}
-			}
-		}
-	}
+    }
+  }
 
-	async function createResource(request, type, subtype) {
-		const {update} = client.requests;
-		const payload = await create(request, type, subtype);
+  async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
+    const {requests} = client;
+    await perform();
+    // eslint-disable-next-line max-statements
+    async function perform() {
+      if (type === 'users' || type === 'publishers') {
+        const response = await requests.fetchList({path: `requests/${type}`, query});
+        const result = await response.json();
+        if (result.results) {
+          logger.log('debug', messageCallback(result.results.length));
+          return processCallback(result.results, type, subtype);
+        }
+      }
 
-		delete payload.id;
-		if (type === 'users') {
-			await update({path: `requests/${type}/${request.id}`, payload: payload});
-			logger.log('info', `${type} requests updated for ${request.id} `);
-		}
+      if (type === 'publications') {
+        const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query});
+        const result = await response.json();
+        if (result.results) {
+          logger.log('debug', messageCallback(result.results.length));
+          return processCallback(result.results, type, subtype);
+        }
+      }
+    }
+  }
 
-		if (type === 'publishers') {
-			await update({path: `requests/${type}/${request.id}`, payload: payload});
-			logger.log('info', `${type} requests updated for ${request.id} `);
-		}
+  // eslint-disable-next-line max-statements
+  async function createResource(request, type, subtype) {
+    const {update} = client.requests;
+    const payload = await create(request, type, subtype);
 
-		if (type === 'publications') {
-			await update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
-			logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
-		}
+    // eslint-disable-next-line functional/immutable-data
+    delete payload.id;
+    if (type === 'users') {
+      await update({path: `requests/${type}/${request.id}`, payload});
+      return logger.log('info', `${type} requests updated for ${request.id} `);
+    }
 
-		return null;
-	}
+    if (type === 'publishers') {
+      await update({path: `requests/${type}/${request.id}`, payload});
+      return logger.log('info', `${type} requests updated for ${request.id} `);
+    }
 
-	function formatPublisher(request) {
-		const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
-		const formatRequest = {
-			...rest,
-			primaryContact: request.primaryContact.map(item => item.email),
-			activity: {
-				active: true,
-				yearInactivated: 0
-			},
-			metadataDelivery: 'manual'
-		};
-		return formatRequest;
-	}
+    if (type === 'publications') {
+      await update({path: `requests/${type}/${subtype}/${request.id}`, payload});
+      return logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
+    }
+  }
 
-	function formatPublication(request) {
-		const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
-		const formatRequest = {
-			...rest
-		};
+  function formatPublisher(request) {
+    // eslint-disable-next-line no-unused-vars
+    const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
+    const formatRequest = {
+      ...rest,
+      primaryContact: request.primaryContact.map(item => item.email),
+      activity: {
+        active: true,
+        yearInactivated: 0
+      },
+      metadataDelivery: 'manual'
+    };
+    return formatRequest;
+  }
 
-		return formatRequest;
-	}
+  function formatPublication(request) {
+    // eslint-disable-next-line no-unused-vars
+    const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
+    const formatRequest = {
+      ...rest
+    };
 
-	function formatUsers(request) {
-		const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
-		const formatRequest = {...rest};
-		return formatRequest;
-	}
+    return formatRequest;
+  }
 
-	async function create(request, type, subtype) {
-		const rangeQueries = {queries: [{query: {active: true}}], offset: null};
-		const {users, publishers, publications, ranges} = client;
-		const {update} = client.requests;
-		if (type === 'users') {
-			await users.create({path: type, payload: formatUsers(request)});
-			const response = await users.read(`${type}/${request.email}`);
-			await sendEmailToCreator(type, request, response);
-			await createLinkAndSendEmail(type, request, response);
-			logger.log('info', `Resource for ${type} has been created`);
-			delete response._id;
-			const newRequest = {...request, ...response};
-			return newRequest;
-		}
+  function formatUsers(request) {
+    // eslint-disable-next-line no-unused-vars
+    const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
+    const formatRequest = {...rest};
+    return formatRequest;
+  }
 
-		if (type === 'publishers') {
-			const response = await publishers.create({path: type, payload: formatPublisher(request)});
-			logger.log('info', `Resource for ${type} has been created`);
-			delete response._id;
-			const newRequest = {...request, ...response};
-			return newRequest;
-		}
+  // eslint-disable-next-line max-statements
+  async function create(request, type, subtype) {
+    const rangeQueries = {queries: [{query: {active: true}}], offset: null};
+    const {users, publishers, publications, ranges} = client;
+    const {update} = client.requests;
+    if (type === 'users') {
+      await users.create({path: type, payload: formatUsers(request)});
+      const response = await users.read(`${type}/${request.email}`);
+      await sendEmailToCreator(type, request, response);
+      await createLinkAndSendEmail(type, request, response);
+      logger.log('info', `Resource for ${type} has been created`);
+      // eslint-disable-next-line functional/immutable-data
+      delete response._id;
+      const newRequest = {...request, ...response};
+      return newRequest;
+    }
 
-		if (type === 'publications') {
-			// Fetch ranges
-			const identifierLists = await determineIdentifierList();
-			if (identifierLists.results.length === 0) {
-				logger.log('info', 'No Active Ranges Found');
-			} else {
-				const activeRange = identifierLists.results[0];
-				// Fetch Publication Issn
-				const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-				const publicationList = await resPublication.json();
+    if (type === 'publishers') {
+      const response = await publishers.create({path: type, payload: formatPublisher(request)});
+      logger.log('info', `Resource for ${type} has been created`);
+      // eslint-disable-next-line functional/immutable-data
+      delete response._id;
+      const newRequest = {...request, ...response};
+      return newRequest;
+    }
 
-				const newPublication = await calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype: subtype});
-				const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
-				delete response._id;
-				const newRequest = {...request, ...response};
-				logger.log('info', `Resource for ${type}${subtype} has been created`);
-				if (subtype === 'issn') {
-					isLastInRange(newPublication, activeRange, update, subtype);
-				}
+    if (type === 'publications') {
+      // Fetch ranges
+      const identifierLists = await determineIdentifierList();
+      if (identifierLists.results.length === 0) {
+        return logger.log('info', 'No Active Ranges Found');
+      }
 
-				return newRequest;
-			}
-		}
+      // eslint-disable-next-line prefer-destructuring
+      const activeRange = identifierLists.results[0];
+      // Fetch Publication Issn
+      const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+      const publicationList = await resPublication.json();
 
-		async function determineIdentifierList() {
-			if (subtype === 'isbn-ismn') {
-				if (request.type === 'music') {
-					const resultIsmn = await identifierLists('ismn');
-					return resultIsmn;
-				}
+      const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
+      const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
+      // eslint-disable-next-line functional/immutable-data
+      delete response._id;
+      const newRequest = {...request, ...response};
+      logger.log('info', `Resource for ${type}${subtype} has been created`);
 
-				const resultIsbn = await identifierLists('isbn');
-				return resultIsbn;
-			}
+      if (subtype === 'issn') {
+        isLastInRange(newPublication, activeRange, update, subtype);
+        return newRequest;
+      }
 
-			const resultIssn = await identifierLists('issn');
-			return resultIssn;
+      return newRequest;
+    }
 
-			async function identifierLists(v) {
-				const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
-				return response.json();
-			}
-		}
-	}
+    async function determineIdentifierList() {
+      if (subtype === 'isbn-ismn') {
+        if (request.type === 'music') {
+          const resultIsmn = await identifierLists('ismn');
+          return resultIsmn;
+        }
 
-	async function isLastInRange(newPublication, activeRange, update, subtype) {
-		if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
-			const payload = {...activeRange, active: false};
-			delete payload.id;
-			const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload: payload});
-			if (res === 200) {
-				await sendEmailToAdministrator();
-			}
-		}
-	}
+        const resultIsbn = await identifierLists('isbn');
+        return resultIsbn;
+      }
 
-	async function sendEmailToAdministrator() {
-		const result = await sendEmail({
-			name: 'reply to a creator', // Need to create its own template later *****************
-			getTemplate: getTemplate,
-			SMTP_URL: SMTP_URL,
-			API_EMAIL: API_EMAIL
-		});
-		return result;
-	}
+      const resultIssn = await identifierLists('issn');
+      return resultIssn;
 
-	async function sendEmailToCreator(type, request, response) {
-		const result = await sendEmail({
-			name: 'reply to a creator',
-			args: response,
-			getTemplate: getTemplate,
-			SMTP_URL: SMTP_URL,
-			API_EMAIL: await getUserEmail(request.creator)
-		});
-		return result;
-	}
+      async function identifierLists(v) {
+        const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
+        return response.json();
+      }
+    }
+  }
 
-	async function calculateNewIdentifier({identifierList, subtype}) {
-		if (subtype === 'issn') {
-			return calculateNewISSN(identifierList);
-		}
+  async function isLastInRange(newPublication, activeRange, update, subtype) {
+    if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
+      const payload = {...activeRange, active: false};
+      // eslint-disable-next-line functional/immutable-data
+      delete payload.id;
+      const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload});
+      if (res === 200) {
+        return sendEmailToAdministrator();
+      }
+    }
+  }
 
-		if (subtype === 'isbnIsmn') {
-			return 'newIdentifier';
-		}
-	}
+  async function sendEmailToAdministrator() {
+    const result = await sendEmail({
+      name: 'reply to a creator', // Need to create its own template later *****************
+      getTemplate,
+      SMTP_URL,
+      API_EMAIL
+    });
+    return result;
+  }
 
-	function calculateNewISSN(array) {
-		// Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
-		const prefix = array[0].slice(0, 4);
-		const slicedRange = array.map(item => item.slice(5, 8));
-		// Get 3 digit of 2nd half from the highest identifier and adding 1 to it
-		const range = Math.max(...slicedRange) + 1;
-		return calculate(prefix, range);
+  async function sendEmailToCreator(type, request, response) {
+    const result = await sendEmail({
+      name: 'reply to a creator',
+      args: response,
+      getTemplate,
+      SMTP_URL,
+      API_EMAIL: await getUserEmail(request.creator)
+    });
+    return result;
+  }
 
-		function calculate(prefix, range) {
-			// Calculation(multiplication and addition of digits)
-			const combine = prefix.concat(range).split('');
-			const sum = combine.reduce((acc, item, index) => {
-				const m = ((combine.length + 1) - index) * item;
-				acc = Number(acc) + Number(m);
-				return acc;
-			}, 0);
+  function calculateNewIdentifier({identifierList, subtype}) {
+    if (subtype === 'issn') {
+      return calculateNewISSN(identifierList);
+    }
 
-			// Get the remainder and calculate it to return the actual check digit
-			const remainder = sum % 11;
-			if (remainder === 0) {
-				const checkDigit = '0';
-				const result = `${prefix}-${range}${checkDigit}`;
-				return result;
-			}
+    if (subtype === 'isbnIsmn') {
+      return 'newIdentifier';
+    }
+  }
 
-			const diff = 11 - remainder;
-			const checkDigit = diff === 10 ? 'X' : diff.toString();
-			const result = `${prefix}-${range}${checkDigit}`;
-			return result;
-		}
-	}
+  function calculateNewISSN(array) {
+    // Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
+    const prefix = array[0].slice(0, 4);
+    const slicedRange = array.map(item => item.slice(5, 8));
+    // Get 3 digit of 2nd half from the highest identifier and adding 1 to it
+    const range = Math.max(...slicedRange) + 1;
+    return calculate(prefix, range);
 
-	async function createLinkAndSendEmail(type, request, response) {
-		const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
+    // eslint-disable-next-line max-statements
+    function calculate(prefix, range) {
+      // Calculation(multiplication and addition of digits)
+      const combine = prefix.concat(range).split('');
+      const sum = combine.reduce((acc, item, index) => {
+        const m = (combine.length + 1 - index) * item;
+        // eslint-disable-next-line no-param-reassign
+        acc = Number(acc) + Number(m);
+        return acc;
+      }, 0);
 
-		const privateData = {
-			userId: request.userId,
-			id: request.id
-		};
+      // Get the remainder and calculate it to return the actual check digit
+      const remainder = sum % 11;
+      if (remainder === 0) {
+        const checkDigit = '0';
+        const result = `${prefix}-${range}${checkDigit}`;
+        return result;
+      }
 
-		const payload = JWT.sign(privateData, key, {
-			expiresIn: '24 hours',
-			iat: true
-		});
+      const diff = 11 - remainder;
+      const checkDigit = diff === 10 ? 'X' : diff.toString();
+      const result = `${prefix}-${range}${checkDigit}`;
+      return result;
+    }
+  }
 
-		const token = await JWE.encrypt(payload, key, {kid: key.kid});
+  async function createLinkAndSendEmail(type, request, response) {
+    const key = JWK.asKey(fs.readFileSync(PRIVATE_KEY_URL, 'utf-8'));
 
-		const link = `${UI_URL}/${type}/passwordReset/${token}`;
-		const result = await sendEmail({
-			name: 'change password',
-			args: {link: link, ...response},
-			getTemplate: getTemplate,
-			SMTP_URL: SMTP_URL,
-			API_EMAIL: response.emails[0].value
-		});
-		return result;
-	}
+    const privateData = {
+      userId: request.userId,
+      id: request.id
+    };
 
-	async function getTemplate(query, cache) {
-		const key = JSON.stringify(query);
-		if (key in cache) {
-			return cache[key];
-		}
+    const payload = JWT.sign(privateData, key, {
+      expiresIn: '24 hours',
+      iat: true
+    });
 
-		cache[key] = await client.templates.getTemplate(query);
-		return cache[key];
-	}
+    const token = await JWE.encrypt(payload, key, {kid: key.kid});
 
-	async function getUserEmail(userId) {
-		const {users} = client;
-		const readResponse = await users.read(`users/${userId}`);
-		return readResponse.emails[0].value;
-	}
+    const link = `${UI_URL}/${type}/passwordReset/${token}`;
+    const result = await sendEmail({
+      name: 'change password',
+      args: {link, ...response},
+      getTemplate,
+      SMTP_URL,
+      API_EMAIL: response.emails[0].value
+    });
+    return result;
+  }
+
+  async function getTemplate(query, cache) {
+    const key = JSON.stringify(query);
+    if (key in cache) {
+      return cache[key];
+    }
+
+    cache[key] = await client.templates.getTemplate(query);
+    return cache[key];
+  }
+
+  async function getUserEmail(userId) {
+    const {users} = client;
+    const readResponse = await users.read(`users/${userId}`);
+    return readResponse.emails[0].value;
+  }
 }

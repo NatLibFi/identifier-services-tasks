@@ -31,72 +31,73 @@ import Agenda from 'agenda';
 import {createRequestJobs, createMelindaJobs, createCleanupJobs} from './jobs';
 import {MongoClient, MongoError} from 'mongodb';
 import {
-	MONGO_URI,
-	TZ,
-	MAX_CONCURRENCY,
-	REQUEST_JOBS,
-	CLEAN_UP_JOBS,
-	MELINDA_JOBS
+  MONGO_URI,
+  TZ,
+  MAX_CONCURRENCY,
+  REQUEST_JOBS,
+  CLEAN_UP_JOBS,
+  MELINDA_JOBS
 } from './config';
 
 const {createLogger, handleInterrupt} = Utils;
 
+// eslint-disable-next-line max-statements
 export default async function () {
-	const Logger = createLogger();
-	const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
-	const Mongo = await client.connect();
-	Mongo.on('error', err => {
-		Logger.log('error', 'Error stack' in err ? err.stact : err);
-		return err;
-	});
+  const Logger = createLogger();
+  const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
+  const Mongo = await client.connect();
+  Mongo.on('error', err => {
+    Logger.log('error', 'Error stack' in err ? err.stact : err);
+    return err;
+  });
 
-	await initDb();
-	const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
-	agenda.on('error', graceful);
-	agenda.on('ready', () => {
-		const opts = TZ ? {timezone: TZ} : {};
+  await initDb();
+  const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
+  agenda.on('error', graceful);
+  agenda.on('ready', () => {
+    const opts = TZ ? {timezone: TZ} : {};
 
-		createRequestJobs(agenda);
-		REQUEST_JOBS.forEach(job => {
-			agenda.every(job.jobFreq, job.jobName, undefined, opts);
-		});
+    createRequestJobs(agenda);
+    REQUEST_JOBS.forEach(job => {
+      agenda.every(job.jobFreq, job.jobName, undefined, opts);
+    });
 
-	if (CLEAN_UP_JOBS.length > 0) {
-		createCleanupJobs(agenda);
-		return CLEAN_UP_JOBS.forEach(job => {
-			agenda.every(job.jobFreq, job.jobName, undefined, opts);
-		});
-	}
+    if (CLEAN_UP_JOBS.length > 0) {
+      createCleanupJobs(agenda);
+      return CLEAN_UP_JOBS.forEach(job => {
+        agenda.every(job.jobFreq, job.jobName, undefined, opts);
+      });
+    }
 
-	if (MELINDA_JOBS.length > 0) {
-		createMelindaJobs(agenda);
-		return MELINDA_JOBS.forEach(job => {
-			agenda.every(job.jobFreq, job.jobName, undefined, opts);
-		});
-	}
-	
-		agenda.start();
-	});
-	return agenda;
+    if (MELINDA_JOBS.length > 0) {
+      createMelindaJobs(agenda);
+      return MELINDA_JOBS.forEach(job => {
+        agenda.every(job.jobFreq, job.jobName, undefined, opts);
+      });
+    }
 
-	async function initDb() {
-		const db = Mongo.db();
-		try {
-			// Remove collection because it causes problems after restart
-			await db.dropCollection('agendaJobs');
-			await db.createCollection('agendaJobs');
-		} catch (err) {
-			// NamespaceNotFound === Collection doesn't exist
-			if (err instanceof MongoError && err.code === 26) {
-				return;
-			}
+    agenda.start();
+  });
+  return agenda;
 
-			throw err;
-		}
-	}
+  async function initDb() {
+    const db = Mongo.db();
+    try {
+      // Remove collection because it causes problems after restart
+      await db.dropCollection('agendaJobs');
+      await db.createCollection('agendaJobs');
+    } catch (err) {
+      // NamespaceNotFound === Collection doesn't exist
+      if (err instanceof MongoError && err.code === 26) {
+        return;
+      }
 
-	async function graceful(arg) {
-		handleInterrupt(arg);
-		await agenda.stop();
-	}
+      throw err;
+    }
+  }
+
+  async function graceful(arg) {
+    handleInterrupt(arg);
+    await agenda.stop();
+  }
 }

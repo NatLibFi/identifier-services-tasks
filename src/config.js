@@ -65,29 +65,29 @@ export const JOB_BACKGROUND_PROCESSING_PROCESSED = 'processed';
 export const REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '30 seconds'});
 
 export const REQUEST_JOBS = [
-	{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW', jobCategory: 'users', jobState: 'new'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_USER_REQUEST_STATE_ACCEPTED', jobCategory: 'users', jobState: 'accepted'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_USER_REQUEST_STATE_REJECTED', jobCategory: 'users', jobState: 'rejected'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLISHER_REQUEST_STATE_NEW', jobCategory: 'publishers', jobState: 'new'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLISHER_REQUEST_STATE_ACCEPTED', jobCategory: 'publishers', jobState: 'accepted'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLISHER_REQUEST_STATE_REJECTED', jobCategory: 'publishers', jobState: 'rejected'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'new'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'accepted'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'rejected'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'new'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'accepted'},
-	{jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'rejected'}
+  {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW', jobCategory: 'users', jobState: 'new'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_USER_REQUEST_STATE_ACCEPTED', jobCategory: 'users', jobState: 'accepted'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_USER_REQUEST_STATE_REJECTED', jobCategory: 'users', jobState: 'rejected'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLISHER_REQUEST_STATE_NEW', jobCategory: 'publishers', jobState: 'new'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLISHER_REQUEST_STATE_ACCEPTED', jobCategory: 'publishers', jobState: 'accepted'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLISHER_REQUEST_STATE_REJECTED', jobCategory: 'publishers', jobState: 'rejected'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_NEW', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'new'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_ACCEPTED', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'accepted'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLICATION_ISSN_REQUEST_STATE_REJECTED', jobCategory: 'publications', jobSubCat: 'issn', jobState: 'rejected'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'new'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_ACCEPTED, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_ACCEPTED', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'accepted'},
+  {jobFreq: JOB_FREQ_REQUEST_STATE_REJECTED, jobName: 'JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_REJECTED', jobCategory: 'publications', jobSubCat: 'isbn-ismn', jobState: 'rejected'}
 ];
 
 export const CLEAN_UP_JOBS = [
-	{jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS', jobCategory: 'publishers'},
-	{jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN', jobCategory: 'publications', jobSubCat: 'isbn-ismn'},
-	{jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN', jobCategory: 'publications', jobSubCat: 'issn'}
+  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS', jobCategory: 'publishers'},
+  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN', jobCategory: 'publications', jobSubCat: 'isbn-ismn'},
+  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN', jobCategory: 'publications', jobSubCat: 'issn'}
 ];
 
 export const MELINDA_JOBS = [
-	{jobFreq: JOB_FREQ_PENDING, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING', jobCategory: 'isbn-ismn', jobState: 'pending'},
-	{jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'isbn-ismn', jobState: 'inProgress'},
-	{jobFreq: JOB_FREQ_PENDING, jobName: 'JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING', jobCategory: 'issn', jobState: 'pending'},
-	{jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'issn', jobState: 'inProgress'}
+  {jobFreq: JOB_FREQ_PENDING, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING', jobCategory: 'isbn-ismn', jobState: 'pending'},
+  {jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'isbn-ismn', jobState: 'inProgress'},
+  {jobFreq: JOB_FREQ_PENDING, jobName: 'JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_PENDING', jobCategory: 'issn', jobState: 'pending'},
+  {jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISSN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'issn', jobState: 'inProgress'}
 ];

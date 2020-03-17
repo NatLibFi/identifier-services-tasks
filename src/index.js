@@ -32,22 +32,22 @@ const {handleInterrupt} = Utils;
 run();
 
 async function run() {
-	interuptionHandlers();
-	const task = await startTask();
+  interuptionHandlers();
+  const task = await startTask();
 
-	async function interuptionHandlers() {
-		process
-			.on('SIGTERM', handleSignal)
-			.on('SIGINT', handleSignal)
-			.on('unhandledRejection', handleInterrupt)
-			.on('uncaughtException', handleInterrupt);
-	}
+  function interuptionHandlers() {
+    process
+      .on('SIGTERM', handleSignal)
+      .on('SIGINT', handleSignal)
+      .on('unhandledRejection', handleInterrupt)
+      .on('uncaughtException', handleInterrupt);
+  }
 
-	function handleSignal(signal) {
-		if (task) {
-			task.stop();
-		}
+  function handleSignal(signal) {
+    if (task) {
+      return task.stop();
+    }
 
-		handleInterrupt(signal);
-	}
+    handleInterrupt(signal);
+  }
 }
