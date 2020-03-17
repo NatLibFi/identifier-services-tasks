@@ -98,7 +98,6 @@ export default function (agenda) {
 	async function processCallback(requests, state, type) {
 		if (state === JOB_BACKGROUND_PROCESSING_PENDING) {
 			await Promise.all(requests.map(async request => {
-			console.log('1111111111111111', requests)
 				// Create a new blob in Melinda's record import system
 				const blobId = await melindaClient.createBlob({
 					blob: JSON.stringify(requests),
@@ -116,7 +115,6 @@ export default function (agenda) {
 				// ==> Retrieve the blob metadata from Melinda's record import system
 				const blobId = request.metadataReference.id;
 				const response = await melindaClient.getBlobMetadata({id: blobId});
-				console.log('eddddddddddddd', response)
 				if (response.state === 'PROCESSED') {
 					if (response.processingInfo.importResults[0].status === 'DUPLICATE') {
 						const newId = response.processingInfo.importResults[0].metadata.matches[0];
