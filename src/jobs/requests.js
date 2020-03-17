@@ -54,7 +54,7 @@ export default function (agenda) {
 
   REQUEST_JOBS.forEach(job => {
     agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
-      request(done, job.jobState, job.jobCategory, job.jobSubCat);
+      await request(done, job.jobState, job.jobCategory, job.jobSubCat);
     });
   });
 

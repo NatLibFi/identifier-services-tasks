@@ -30,7 +30,13 @@ import testSuitFactory from '../testUtils';
 
 describe('backgroundTask', () => {
   const generateTestSuite = testSuitFactory({
-    rootPath: [__dirname, '..', '..', 'test-fixtures', 'requests']
+    rootPath: [
+      __dirname,
+      '..',
+      '..',
+      'test-fixtures',
+      'requests'
+    ]
   });
 
   describe('requests', () => {

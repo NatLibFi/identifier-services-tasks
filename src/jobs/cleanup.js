@@ -75,16 +75,19 @@ export default function (agenda) {
     }
 
     async function filterRequests(requests) {
-      await requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(REQUEST_TTL)).isBefore(moment()));
+      await requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(REQUEST_TTL))
+        .isBefore(moment()));
     }
 
     async function processRequests(filteredRequests) {
-      await Promise.all(filteredRequests.map(async request => setBackground(request, 'pending')));
+      await Promise.all(filteredRequests.map(async request => {
+        await setBackground(request, 'pending');
+      }));
 
       async function setBackground(request, state) {
         const payload = {...request, backgroundProcessingState: state};
         const {requests} = client;
-        await requests.update({path: `requests/${type}/${request.id}`, payload: payload});
+        await requests.update({path: `requests/${type}/${request.id}`, payload});
 
         logger.log('info', `Background processing State changed to ${state} for ${request.id}`);
       }

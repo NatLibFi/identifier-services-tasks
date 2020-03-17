@@ -44,7 +44,7 @@ const {createLogger, handleInterrupt} = Utils;
 // eslint-disable-next-line max-statements
 export default async function () {
   const Logger = createLogger();
-  const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
+  const client = new MongoClient(MONGO_URI, {useNewUrlParser: true});
   const Mongo = await client.connect();
   Mongo.on('error', err => {
     Logger.log('error', 'Error stack' in err ? err.stact : err);
@@ -54,29 +54,41 @@ export default async function () {
   await initDb();
   const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
   agenda.on('error', graceful);
+  // eslint-disable-next-line max-statements
   agenda.on('ready', () => {
     const opts = TZ ? {timezone: TZ} : {};
 
-    createRequestJobs(agenda);
-    REQUEST_JOBS.forEach(job => {
-      agenda.every(job.jobFreq, job.jobName, undefined, opts);
-    });
-
-    if (CLEAN_UP_JOBS.length > 0) {
-      createCleanupJobs(agenda);
-      return CLEAN_UP_JOBS.forEach(job => {
+    if (REQUEST_JOBS.length > 0) {
+      createRequestJobs(agenda);
+      REQUEST_JOBS.forEach(job => {
         agenda.every(job.jobFreq, job.jobName, undefined, opts);
       });
-    }
 
-    if (MELINDA_JOBS.length > 0) {
-      createMelindaJobs(agenda);
-      return MELINDA_JOBS.forEach(job => {
-        agenda.every(job.jobFreq, job.jobName, undefined, opts);
-      });
-    }
+      if (CLEAN_UP_JOBS.length > 0) {
+        createCleanupJobs(agenda);
+        CLEAN_UP_JOBS.forEach(job => {
+          agenda.every(job.jobFreq, job.jobName, undefined, opts);
+        });
 
-    agenda.start();
+        if (MELINDA_JOBS.length > 0) {
+          createMelindaJobs(agenda);
+          MELINDA_JOBS.forEach(job => {
+            agenda.every(job.jobFreq, job.jobName, undefined, opts);
+          });
+          return agenda.start();
+        }
+        return agenda.start();
+      }
+
+      if (MELINDA_JOBS.length > 0) {
+        createMelindaJobs(agenda);
+        MELINDA_JOBS.forEach(job => {
+          agenda.every(job.jobFreq, job.jobName, undefined, opts);
+        });
+        return agenda.start();
+      }
+      return agenda.start();
+    }
   });
   return agenda;
 

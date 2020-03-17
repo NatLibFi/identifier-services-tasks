@@ -60,7 +60,7 @@ export default function (agenda) {
 
   MELINDA_JOBS.forEach(job => {
     agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
-      request(done, job.jobState, job.jobCategory);
+      await request(done, job.jobState, job.jobCategory);
     });
   });
 
