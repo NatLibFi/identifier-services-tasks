@@ -53,7 +53,9 @@ export default ({rootPath}) => {
 	afterEach(async () => {
 		await MongoServer.closeCallback();
 		RewireAPI.__ResetDependency__('MONGO_URI');
-		RewireAPI.__ResetDependency__('JOBS');
+		RewireAPI.__ResetDependency__('REQUEST_JOBS');
+		RewireAPI.__ResetDependency__('CLEAN_UP_JOBS');
+		RewireAPI.__ResetDependency__('MELINDA_JOBS');
 	});
 
 	return (...args) => {
@@ -84,7 +86,9 @@ export default ({rootPath}) => {
 						}
 
 						return it(`${subD} ${descr}`, async () => {
-							RewireAPI.__Rewire__('JOBS', JOBS);
+							RewireAPI.__Rewire__('REQUEST_JOBS', JOBS);
+							RewireAPI.__Rewire__('CLEAN_UP_JOBS', []);
+							RewireAPI.__Rewire__('MELINDA_JOBS', []);
 
 							const scope = nock(API_URL, {
 								reqheaders: {

@@ -57,19 +57,24 @@ export default async function () {
 		const opts = TZ ? {timezone: TZ} : {};
 
 		createRequestJobs(agenda);
-		createMelindaJobs(agenda);
-		createCleanupJobs(agenda);
-
 		REQUEST_JOBS.forEach(job => {
 			agenda.every(job.jobFreq, job.jobName, undefined, opts);
 		});
-		CLEAN_UP_JOBS.forEach(job => {
-			agenda.every(job.jobFreq, job.jobName, undefined, opts);
-		});
-		MELINDA_JOBS.forEach(job => {
-			agenda.every(job.jobFreq, job.jobName, undefined, opts);
-		});
 
+	if (CLEAN_UP_JOBS.length > 0) {
+		createCleanupJobs(agenda);
+		return CLEAN_UP_JOBS.forEach(job => {
+			agenda.every(job.jobFreq, job.jobName, undefined, opts);
+		});
+	}
+
+	if (MELINDA_JOBS.length > 0) {
+		createMelindaJobs(agenda);
+		return MELINDA_JOBS.forEach(job => {
+			agenda.every(job.jobFreq, job.jobName, undefined, opts);
+		});
+	}
+	
 		agenda.start();
 	});
 	return agenda;
