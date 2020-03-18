@@ -34,7 +34,7 @@ import {readdirSync} from 'fs';
 import {join as joinPath} from 'path';
 
 import {API_URL} from './config';
-import startTask, {__RewireAPI__ as RewireAPI} from './app'; // eslint-disable-line
+import startTask, {__RewireAPI__ as RewireAPI} from './app';
 
 const setTimeoutPromise = promisify(setTimeout);
 
@@ -62,8 +62,7 @@ export default ({rootPath}) => {
   return (...args) => () => {
     const dir = rootPath.concat(args);
     const {getFixture} = fixtureFactory({root: dir});
-    // eslint-disable-next-line prefer-spread
-    const subDirs = readdirSync(joinPath.apply(undefined, dir));
+    const subDirs = readdirSync(joinPath(...dir));
 
     return iterate();
 
