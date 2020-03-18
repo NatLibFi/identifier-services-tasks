@@ -136,9 +136,8 @@ export default function (agenda) {
     }));
 
     async function setBackground(request, type, subtype, state) {
-      const payload = {...request, backgroundProcessingState: state};
-      // eslint-disable-next-line functional/immutable-data
-      delete payload.id;
+      const newPayload = {...request, backgroundProcessingState: state};
+      const {id, ...payload} = {...newPayload};
       const {requests} = client;
       if (type === 'users') {
         await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
@@ -185,10 +184,9 @@ export default function (agenda) {
 
   async function createResource(request, type, subtype) {
     const {update} = client.requests;
-    const payload = await create(request, type, subtype);
+    const result = await create(request, type, subtype);
+    const payload = {...request, createdResource: result.id};
 
-    // eslint-disable-next-line functional/immutable-data
-    delete payload.id;
     if (type === 'users') {
       await update({path: `requests/${type}/${request.id}`, payload});
       return logger.log('info', `${type} requests updated for ${request.id} `);
@@ -238,25 +236,20 @@ export default function (agenda) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
     const {update} = client.requests;
+
     if (type === 'users') {
       await users.create({path: type, payload: formatUsers(request)});
       const response = await users.read(`${type}/${request.email}`);
       await sendEmailToCreator(type, request, response);
       await createLinkAndSendEmail(type, request, response);
       logger.log('info', `Resource for ${type} has been created`);
-      // eslint-disable-next-line functional/immutable-data
-      delete response._id;
-      const newRequest = {...request, ...response};
-      return newRequest;
+      return request;
     }
 
     if (type === 'publishers') {
       const response = await publishers.create({path: type, payload: formatPublisher(request)});
       logger.log('info', `Resource for ${type} has been created`);
-      // eslint-disable-next-line functional/immutable-data
-      delete response._id;
-      const newRequest = {...request, ...response};
-      return newRequest;
+      return request;
     }
 
     if (type === 'publications') {
@@ -273,17 +266,14 @@ export default function (agenda) {
 
       const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
       const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
-      // eslint-disable-next-line functional/immutable-data
-      delete response._id;
-      const newRequest = {...request, ...response};
       logger.log('info', `Resource for ${type}${subtype} has been created`);
 
       if (subtype === 'issn') {
         isLastInRange(newPublication, activeRange, update, subtype);
-        return newRequest;
+        return request;
       }
 
-      return newRequest;
+      return request;
     }
 
     async function determineIdentifierList() {
@@ -309,9 +299,8 @@ export default function (agenda) {
 
   async function isLastInRange(newPublication, activeRange, update, subtype) {
     if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
-      const payload = {...activeRange, active: false};
-      // eslint-disable-next-line functional/immutable-data
-      delete payload.id;
+      const newPayload = {...activeRange, active: false};
+      const {id, ...payload} = {...newPayload};
       const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload});
       if (res === 200) {
         return sendEmailToAdministrator();
