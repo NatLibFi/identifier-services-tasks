@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 /**
 *
 * @licstart  The following is the entire license notice for the JavaScript code in this file.
@@ -44,7 +43,6 @@ import {
 
 const {createLogger, sendEmail} = Utils;
 
-// eslint-disable-next-line max-statements
 export default function (agenda) {
   const logger = createLogger();
 
@@ -76,7 +74,6 @@ export default function (agenda) {
   }
 
   async function processCallback(requests, type, subtype) {
-    // eslint-disable-next-line max-statements
     await Promise.all(requests.map(async request => {
       await setBackground(request, type, subtype, 'inProgress');
       if (request.state === 'new') {
@@ -138,7 +135,6 @@ export default function (agenda) {
       }
     }));
 
-    // eslint-disable-next-line max-statements
     async function setBackground(request, type, subtype, state) {
       const payload = {...request, backgroundProcessingState: state};
       // eslint-disable-next-line functional/immutable-data
@@ -166,7 +162,6 @@ export default function (agenda) {
   async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
     const {requests} = client;
     await perform();
-    // eslint-disable-next-line max-statements
     async function perform() {
       if (type === 'users' || type === 'publishers') {
         const response = await requests.fetchList({path: `requests/${type}`, query});
@@ -188,7 +183,6 @@ export default function (agenda) {
     }
   }
 
-  // eslint-disable-next-line max-statements
   async function createResource(request, type, subtype) {
     const {update} = client.requests;
     const payload = await create(request, type, subtype);
@@ -212,7 +206,6 @@ export default function (agenda) {
   }
 
   function formatPublisher(request) {
-    // eslint-disable-next-line no-unused-vars
     const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
     const formatRequest = {
       ...rest,
@@ -227,7 +220,6 @@ export default function (agenda) {
   }
 
   function formatPublication(request) {
-    // eslint-disable-next-line no-unused-vars
     const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
     const formatRequest = {
       ...rest
@@ -237,13 +229,11 @@ export default function (agenda) {
   }
 
   function formatUsers(request) {
-    // eslint-disable-next-line no-unused-vars
     const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
     const formatRequest = {...rest};
     return formatRequest;
   }
 
-  // eslint-disable-next-line max-statements
   async function create(request, type, subtype) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
@@ -275,9 +265,8 @@ export default function (agenda) {
       if (identifierLists.results.length === 0) {
         return logger.log('info', 'No Active Ranges Found');
       }
-
-      // eslint-disable-next-line prefer-destructuring
-      const activeRange = identifierLists.results[0];
+      const {results} = identifierLists;
+      const [activeRange] = results;
       // Fetch Publication Issn
       const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
       const publicationList = await resPublication.json();
@@ -369,7 +358,6 @@ export default function (agenda) {
     const range = Math.max(...slicedRange) + 1;
     return calculate(prefix, range);
 
-    // eslint-disable-next-line max-statements
     function calculate(prefix, range) {
       // Calculation(multiplication and addition of digits)
       const combine = prefix.concat(range).split('');

@@ -85,7 +85,6 @@ export default ({rootPath}) => {
             return it.skip(`${subD} ${descr}`);
           }
 
-          // eslint-disable-next-line max-statements
           return it(`${subD} ${descr}`, async () => {
             RewireAPI.__Rewire__('REQUEST_JOBS', JOBS);
             RewireAPI.__Rewire__('CLEAN_UP_JOBS', []);

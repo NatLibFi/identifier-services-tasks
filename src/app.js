@@ -41,7 +41,6 @@ import {
 
 const {createLogger, handleInterrupt} = Utils;
 
-// eslint-disable-next-line max-statements
 export default async function () {
   const Logger = createLogger();
   const client = new MongoClient(MONGO_URI, {useNewUrlParser: true});
@@ -54,7 +53,6 @@ export default async function () {
   await initDb();
   const agenda = new Agenda({mongo: Mongo.db(), maxConcurrency: MAX_CONCURRENCY});
   agenda.on('error', graceful);
-  // eslint-disable-next-line max-statements
   agenda.on('ready', () => {
     const opts = TZ ? {timezone: TZ} : {};
 
