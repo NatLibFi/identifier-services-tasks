@@ -427,10 +427,8 @@ export default function (agenda) {
       return cache[key];
     }
 
-    // eslint-disable-next-line functional/immutable-data
-    // eslint-disable-next-line require-atomic-updates
-    cache[key] = await client.templates.getTemplate(query);
-    return cache[key];
+    const templateResult = {...cache, [key]: await client.templates.getTemplate(query)};
+    return templateResult[key];
   }
 
   async function getUserEmail(userId) {
