@@ -137,24 +137,32 @@ export default function (agenda) {
 
     async function setBackground(request, type, subtype, state) {
       const newPayload = {...request, backgroundProcessingState: state};
-      const {id, ...payload} = {...newPayload};
+      const filteredDoc = filterDoc(newPayload);
       const {requests} = client;
       if (type === 'users') {
-        await requests.update({path: `requests/${type}/${request.id}`, payload: {...payload, initialRequest: true}});
+        await requests.update({path: `requests/${type}/${request.id}`, payload: {...filteredDoc, initialRequest: true}});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
 
       }
 
       if (type === 'publishers') {
-        await requests.update({path: `requests/${type}/${request.id}`, payload});
+        await requests.update({path: `requests/${type}/${request.id}`, filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
       if (type === 'publications') {
-        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload});
+        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
+      function filterDoc(doc) {
+        return Object.entries(doc)
+          .filter(([key]) => key === 'id' === false)
+          .reduce((acc, [
+            key,
+            value
+          ]) => ({...acc, [key]: value}), {});
+      }
     }
   }
 
@@ -204,9 +212,9 @@ export default function (agenda) {
   }
 
   function formatPublisher(request) {
-    const {backgroundProcessingState, state, rejectionReason, creator, notes, createdResource, id, ...rest} = {...request};
+    const filteredDoc = filterDoc(request);
     const formatRequest = {
-      ...rest,
+      ...filteredDoc,
       primaryContact: request.primaryContact.map(item => item.email),
       activity: {
         active: true,
@@ -215,21 +223,59 @@ export default function (agenda) {
       metadataDelivery: 'manual'
     };
     return formatRequest;
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => key === 'backgroundProcessingState' === false)
+        .filter(([key]) => key === 'state' === false)
+        .filter(([key]) => key === 'rejectionReason' === false)
+        .filter(([key]) => key === 'creator' === false)
+        .filter(([key]) => key === 'notes' === false)
+        .filter(([key]) => key === 'createdResource' === false)
+        .filter(([key]) => key === 'id' === false)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
+    }
   }
 
   function formatPublication(request) {
-    const {backgroundProcessingState, state, rejectionReason, creator, notes, lastUpdated, id, role, ...rest} = {...request};
-    const formatRequest = {
-      ...rest
-    };
+    const filteredDoc = filterDoc(request);
+    return {...filteredDoc};
 
-    return formatRequest;
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => key === 'backgroundProcessingState' === false)
+        .filter(([key]) => key === 'state' === false)
+        .filter(([key]) => key === 'rejectionReason' === false)
+        .filter(([key]) => key === 'creator' === false)
+        .filter(([key]) => key === 'notes' === false)
+        .filter(([key]) => key === 'lastUpdated' === false)
+        .filter(([key]) => key === 'id' === false)
+        .filter(([key]) => key === 'role' === false)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
+    }
   }
 
   function formatUsers(request) {
-    const {mongoId, backgroundProcessingState, state, rejectionReason, creator, lastUpdated, ...rest} = {...request};
-    const formatRequest = {...rest};
-    return formatRequest;
+    const filteredDoc = filterDoc(request);
+    return {...filteredDoc};
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => key === 'backgroundProcessingState' === false)
+        .filter(([key]) => key === 'state' === false)
+        .filter(([key]) => key === 'rejectionReason' === false)
+        .filter(([key]) => key === 'creator' === false)
+        .filter(([key]) => key === 'mongoId' === false)
+        .filter(([key]) => key === 'lastUpdated' === false)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
+    }
   }
 
   async function create(request, type, subtype) {
@@ -247,7 +293,7 @@ export default function (agenda) {
     }
 
     if (type === 'publishers') {
-      const response = await publishers.create({path: type, payload: formatPublisher(request)});
+      await publishers.create({path: type, payload: formatPublisher(request)});
       logger.log('info', `Resource for ${type} has been created`);
       return request;
     }
@@ -265,7 +311,7 @@ export default function (agenda) {
       const publicationList = await resPublication.json();
 
       const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
-      const response = await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
+      await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
       logger.log('info', `Resource for ${type}${subtype} has been created`);
 
       if (subtype === 'issn') {
@@ -276,19 +322,14 @@ export default function (agenda) {
       return request;
     }
 
-    async function determineIdentifierList() {
+    function determineIdentifierList() {
       if (subtype === 'isbn-ismn') {
         if (request.type === 'music') {
-          const resultIsmn = await identifierLists('ismn');
-          return resultIsmn;
+          return identifierLists('ismn');
         }
-
-        const resultIsbn = await identifierLists('isbn');
-        return resultIsbn;
+        return identifierLists('isbn');
       }
-
-      const resultIssn = await identifierLists('issn');
-      return resultIssn;
+      return identifierLists('issn');
 
       async function identifierLists(v) {
         const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
@@ -300,11 +341,19 @@ export default function (agenda) {
   async function isLastInRange(newPublication, activeRange, update, subtype) {
     if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
       const newPayload = {...activeRange, active: false};
-      const {id, ...payload} = {...newPayload};
-      const res = await update({path: `ranges/${subtype}/${activeRange.id}`, payload});
+      const filteredDoc = filterDoc(newPayload);
+      const res = await update({path: `ranges/${subtype}/${activeRange.id}`, filteredDoc});
       if (res === 200) {
         return sendEmailToAdministrator();
       }
+    }
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => key === 'id' === false)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
     }
   }
 

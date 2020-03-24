@@ -39,8 +39,7 @@ import startTask, {__RewireAPI__ as RewireAPI} from './app';
 const setTimeoutPromise = promisify(setTimeout);
 
 export default ({rootPath}) => {
-  // eslint-disable-next-line functional/no-let
-  let MongoServer;
+  let MongoServer; // eslint-disable-line functional/no-let
 
   beforeEach(async () => {
     MongoServer = getMongoMethods();
