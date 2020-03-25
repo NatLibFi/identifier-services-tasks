@@ -164,7 +164,6 @@ export default function (agenda) {
 						});
 					}
 
-					await setBackground(request, type, subtype, 'processed');
 					break;
 
 				default:
@@ -222,14 +221,14 @@ export default function (agenda) {
 	async function createResource(request, type, subtype) {
 		const {update} = client.requests;
 		const payload = await create(request, type, subtype);
-		delete payload.id;
+		const {id, ...newPayload} = {...payload, backgroundProcessingState: 'processed'};
 		switch (type) {
 			case 'users':
 				await update({path: `requests/${type}/${request.id}`, payload: payload});
 				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publishers':
-				await update({path: `requests/${type}/${request.id}`, payload: payload});
+				await update({path: `requests/${type}/${request.id}`, payload: newPayload});
 				logger.log('info', `${type} requests updated for ${request.id} `);
 				break;
 			case 'publications':
@@ -290,10 +289,9 @@ export default function (agenda) {
 			}
 
 			case 'publishers': {
-				const response = await publishers.create({path: type, payload: formatPublisher(request)});
+				const result = await publishers.create({path: type, payload: formatPublisher(request)});
 				logger.log('info', `Resource for ${type} has been created`);
-				delete response._id;
-				const newRequest = {...request, ...response};
+				const {isbnRange, ismnRange, ...newRequest} = {...request, createdResource: result};
 				return newRequest;
 			}
 
