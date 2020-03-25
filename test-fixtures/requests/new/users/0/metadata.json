@@ -1,0 +1,33 @@
+{
+    "descr": "Should not update when the reply is empty or incorrect",
+    "httpRequest": [
+        {
+            "url": "/requests/users/query",
+            "method": "post",
+            "responseStatus": 200,
+            "responseBody": "queryResponse.json"
+        },
+        {
+            "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+            "method": "put",
+            "responseStatus": 200
+        }
+    ],
+    "reqheader": {
+        "Authorization": "Bearer null",
+        "contentType": "Content-type"
+    },
+    "JOBS": [
+        {
+            "jobFreq": "10 seconds",
+            "jobName": "JOB_USER_REQUEST_STATE_NEW"
+        }
+    ],
+    "pendingMock": {
+        "url": "/requests/users/5cd3e9e5f2376736726e4c19",
+        "method": "PUT"
+    },
+    "timeout": 45,
+    "pollFrequency": 35,
+    "skip": true
+}

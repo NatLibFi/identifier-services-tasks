@@ -26,7 +26,7 @@
     "lint": "eslint src",
     "test:base": "cross-env NODE_ENV=test nyc mocha -t 20000 --exit --require @babel/register",
     "test": "npm run lint",
-    "test:dev": "npm run lint:dev",
+    "test:dev": "npm run test:base -- src/jobs/*.spec.js && npm run coverage",
     "coverage": "nyc check-coverage --per-file",
     "build": "babel src --source-maps --copy-files --delete-dir-on-start --out-dir=dist --minified",
     "build:dev": "npm run build:transpile && npm run check-deps",
@@ -48,6 +48,7 @@
     "@babel/node": "^7.2.2",
     "@babel/preset-env": "^7.2.0",
     "@babel/register": "^7.0.0",
+    "@natlibfi/eslint-config-melinda-backend": "^1.0.0-alpha.3",
     "@natlibfi/fixura": "^1.0.0",
     "@natlibfi/fixura-mongo": "^1.0.0",
     "babel-eslint": "^10.0.1",
@@ -55,33 +56,18 @@
     "babel-plugin-rewire": "^1.2.0",
     "cross-env": "^6.0.3",
     "eslint": "^6.5.1",
-    "eslint-config-xo": ">=0.25.0 <1.0.0",
     "eslint-plugin-import": "^2.14.0",
     "fs": "0.0.2",
     "istanbul": ">=0.4.5 <1.0.0",
     "mocha": "^6.0.2",
+    "mongodb-memory-server": "^6.2.4",
     "nock": "^11.5.0",
     "nodemon": "^1.18.10",
     "npm-check": "^5.9.0",
     "nyc": "^14.1.1"
   },
   "eslintConfig": {
-    "parser": "babel-eslint",
-    "plugins": [
-      "import"
-    ],
-    "extends": [
-      "xo",
-      "plugin:import/errors"
-    ],
-    "rules": {
-      "prefer-arrow-callback": [
-        "error"
-      ]
-    },
-    "env": {
-      "mocha": true
-    }
+    "extends": "@natlibfi/melinda-backend"
   },
   "babel": {
     "presets": [

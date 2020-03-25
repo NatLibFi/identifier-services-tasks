@@ -1,0 +1,32 @@
+{
+    "descr": "Should not update when the reply is empty or incorrect",
+    "httpRequest": [
+        {
+            "url": "/requests/publications/isbn-ismn/query",
+            "method": "post",
+            "responseStatus": 200,
+            "responseBody": "queryResponse.json"
+        },
+        {
+            "url": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
+            "method": "put",
+            "responseStatus": 200
+        }
+    ],
+    "reqheader": {
+        "Authorization": "Bearer null",
+        "contentType": "Content-type"
+    },
+    "JOBS": [
+        {
+            "jobFreq": "10 seconds",
+            "jobName": "JOB_PUBLICATION_ISBNISMN_REQUEST_STATE_NEW"
+        }
+    ],
+    "pendingMock": {
+        "url": "/requests/publications/isbn-ismn/5cd3e9e5f2376736726e4c19",
+        "method": "PUT"
+    },
+    "timeout": 50,
+    "pollFrequency": 35
+}

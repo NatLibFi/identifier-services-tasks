@@ -25,29 +25,24 @@
 * for the JavaScript code in this file.
 *
 */
-import {Utils} from '@natlibfi/identifier-services-commons';
-import startTask from './app';
-const {handleInterrupt} = Utils;
 
-run();
+import testSuitFactory from '../testUtils';
 
-async function run() {
-  interuptionHandlers();
-  const task = await startTask();
+describe('backgroundTask', () => {
+  const generateTestSuite = testSuitFactory({
+    rootPath: [
+      __dirname,
+      '..',
+      '..',
+      'test-fixtures',
+      'requests'
+    ]
+  });
 
-  function interuptionHandlers() {
-    process
-      .on('SIGTERM', handleSignal)
-      .on('SIGINT', handleSignal)
-      .on('unhandledRejection', handleInterrupt)
-      .on('uncaughtException', handleInterrupt);
-  }
-
-  function handleSignal(signal) {
-    if (task) {
-      return task.stop();
-    }
-
-    handleInterrupt(signal);
-  }
-}
+  describe('requests', () => {
+    describe('#new Users', generateTestSuite('new', 'users'));
+    describe('#new Publishers', generateTestSuite('new', 'publishers'));
+    describe('#new Publications isbn-ismn', generateTestSuite('new', 'publications', 'isbn-ismn'));
+    describe('#new Publications issn', generateTestSuite('new', 'publications', 'issn'));
+  });
+});

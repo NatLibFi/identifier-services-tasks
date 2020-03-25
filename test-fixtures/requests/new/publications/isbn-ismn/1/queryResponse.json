@@ -1,0 +1,36 @@
+{
+    "offset": "5cd3e9e5f2376736726e4c19",
+    "queryDocCount": 1,
+    "totalDoc": 1,
+    "results": [
+        {
+            "id": "5cd3e9e5f2376736726e4c19",
+            "language": "eng",
+            "isPublic": true,
+            "title": "payload",
+            "publicationTime": "2019-09-26T12:43:41.422Z",
+            "type": "map",
+            "authors": [
+                {
+                    "role": "author",
+                    "givenName": "fdf",
+                    "familyName": "dfdf"
+                }
+            ],
+            "role": "author",
+            "seriesDetails": {
+                "volume": 4,
+                "title": "dsfsf"
+            },
+            "formatDetails": {
+                "fileFormat": "pdf",
+                "format": "electronic"
+            },
+            "publisher": "5cd90e696a1e930789df0000",
+            "state": "new",
+            "lastUpdated": {},
+            "backgroundProcessingState": "processed",
+            "creator": "5dde33ad22f6986217111111"
+        }
+    ]
+}
