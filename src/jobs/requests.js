@@ -146,12 +146,12 @@ export default function (agenda) {
       }
 
       if (type === 'publishers') {
-        await requests.update({path: `requests/${type}/${request.id}`, filteredDoc});
+        await requests.update({path: `requests/${type}/${request.id}`, payload: filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
       if (type === 'publications') {
-        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, filteredDoc});
+        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
@@ -309,9 +309,10 @@ export default function (agenda) {
       // Fetch Publication Issn
       const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
       const publicationList = await resPublication.json();
-
+      // Create Publisher if user is anonymous or publisher details is provided
+      const payload = Object.entries(request.publisher) ? await createPublisher() : request;
       const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
-      await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
+      await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
       logger.log('info', `Resource for ${type}${subtype} has been created`);
 
       if (subtype === 'issn') {
@@ -320,6 +321,13 @@ export default function (agenda) {
       }
 
       return request;
+    }
+
+    async function createPublisher() {
+      const publisherId = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
+      console.log(publisherId);
+      logger.log('info', `Resource for publishers has been created`);
+      // const newPayload = {...request, publisher: "publisherId"}
     }
 
     function determineIdentifierList() {

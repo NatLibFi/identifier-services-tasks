@@ -56,7 +56,7 @@ export default function (agenda) {
   async function request(done, type) {
     try {
       const requests = await getRequests(done, type);
-      const filteredRequests = await filterRequests(requests);
+      const filteredRequests = filterRequests(requests);
       logger.log('debug', `${filteredRequests.length} requests for ${type} need to have their background processing state set to 'pending'`);
       await processRequests(filteredRequests);
     } finally {
@@ -74,8 +74,8 @@ export default function (agenda) {
       }
     }
 
-    async function filterRequests(requests) {
-      await requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(REQUEST_TTL))
+    function filterRequests(requests) {
+      return requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(REQUEST_TTL))
         .isBefore(moment()));
     }
 
