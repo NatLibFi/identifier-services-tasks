@@ -210,13 +210,20 @@ export default function (agenda) {
     }
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'isbnRange' === false)
-        .filter(([key]) => key === 'ismnRange' === false)
-        .filter(([key]) => key === 'id' === false)
+        .filter(filter)
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'isbnRange',
+        'ismnRange',
+        'rejectionReason',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -235,18 +242,24 @@ export default function (agenda) {
     return formatRequest;
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'notes' === false)
-        .filter(([key]) => key === 'createdResource' === false)
-        .filter(([key]) => key === 'publisherEmail' === false)
-        .filter(([key]) => key === 'id' === false)
+        .filter(filter)
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'notes',
+        'createdResource',
+        'publisherEmail',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -256,18 +269,24 @@ export default function (agenda) {
 
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'notes' === false)
-        .filter(([key]) => key === 'lastUpdated' === false)
-        .filter(([key]) => key === 'id' === false)
-        .filter(([key]) => key === 'role' === false)
+        .filter(filter)
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'notes',
+        'lastUpdated',
+        'role',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -276,16 +295,22 @@ export default function (agenda) {
     return {...filteredDoc};
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'mongoId' === false)
-        .filter(([key]) => key === 'lastUpdated' === false)
+        .filter(filter)
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'mongoId',
+        'lastUpdated'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 

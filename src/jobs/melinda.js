@@ -75,7 +75,7 @@ export default function (agenda) {
       await processRequest({
         client, processCallback,
         query: {queries: [{query: {metadataReference: {state}}}], offset: null},
-        messageCallback: count => `${count} requests are ${state}`,
+        messageCallback: count => `${count} requests for melinda are ${state}`,
         state,
         type
       });
