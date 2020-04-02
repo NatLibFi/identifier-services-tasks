@@ -78,18 +78,18 @@ export default function (agenda) {
       await setBackground(request, type, subtype, 'inProgress');
       if (request.state === 'new') {
         if (type !== 'users') {
-          // await sendEmail({
-          //   name: `${type} request new`,
-          //   getTemplate,
-          //   SMTP_URL,
-          //   API_EMAIL: await getUserEmail(request.creator)
-          // });
-          // await sendEmail({
-          //   name: `${type} request new`,
-          //   getTemplate,
-          //   SMTP_URL,
-          //   API_EMAIL
-          // });
+          await sendEmail({
+            Name: `${type} request new`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL: await getUserEmail(request.creator)
+          });
+          await sendEmail({
+            Name: `${type} request new`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL
+          });
 
           return setBackground(request, type, subtype, 'processed');
         }
@@ -121,14 +121,14 @@ export default function (agenda) {
           logger.log('error', `${error}`);
         }
 
-        // if (type !== 'users') {
-        //   await sendEmail({
-        //     name: `${type} request accepted`,
-        //     getTemplate,
-        //     SMTP_URL,
-        //     API_EMAIL: await getUserEmail(request.creator)
-        //   });
-        // }
+        if (type !== 'users') {
+          return sendEmail({
+            name: `${type} request accepted`,
+            getTemplate,
+            SMTP_URL,
+            API_EMAIL: await getUserEmail(request.creator)
+          });
+        }
 
       }
     }));
@@ -167,6 +167,7 @@ export default function (agenda) {
   async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
     const {requests} = client;
     await perform();
+    // eslint-disable-next-line max-statements
     async function perform() {
       if (type === 'users' || type === 'publishers') {
         const response = await requests.fetchList({path: `requests/${type}`, query});
@@ -188,10 +189,12 @@ export default function (agenda) {
     }
   }
 
+  // eslint-disable-next-line max-statements
   async function createResource(request, type, subtype) {
     const {update} = client.requests;
     const result = await create(request, type, subtype);
-    const {id, ...payload} = {...result, backgroundProcessingState: 'processed'};
+    const filteredDoc = filterDoc(result);
+    const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
 
     if (type === 'users') {
       await update({path: `requests/${type}/${request.id}`, payload});
@@ -199,13 +202,30 @@ export default function (agenda) {
     }
 
     if (type === 'publishers') {
-      await update({path: `requests/${type}/${request.id}`, payload: payload});
+      await update({path: `requests/${type}/${request.id}`, payload});
       return logger.log('info', `${type} requests updated for ${request.id} `);
     }
 
     if (type === 'publications') {
-      await update({path: `requests/${type}/${subtype}/${request.id}`, payload: payload});
+      await update({path: `requests/${type}/${subtype}/${request.id}`, payload});
       return logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
+    }
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(filter)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'isbnRange',
+        'ismnRange',
+        'rejectionReason',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -276,6 +296,16 @@ export default function (agenda) {
     }
   }
 
+  function removePublisher(doc) {
+    return Object.entries(doc)
+      .filter(([key]) => key === 'publisher' === false)
+      .reduce((acc, [
+        key,
+        value
+      ]) => ({...acc, [key]: value}), {});
+  }
+
+  // eslint-disable-next-line max-statements
   async function create(request, type, subtype) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
@@ -293,95 +323,99 @@ export default function (agenda) {
     if (type === 'publishers') {
       const result = await publishers.create({path: type, payload: formatPublisher(request)});
       logger.log('info', `Resource for ${type} has been created`);
-      const {isbnRange, ismnRange, ...newRequest} = {...request, createdResource: result};
-      return newRequest;
+      return {...request, createdResource: result};
     }
 
     if (type === 'publications') {
-        if (subtype === 'isbn-ismn') {
-          const queryPubIsbn = [{
-            query: {$or: [{type: 'book'}, {type: 'dissertation'}, {type: 'map'}]}
-          }];
-          const queryPubIsmn = [{
+      if (subtype === 'isbn-ismn') {
+        const queryPubIsbn = [
+          {
+            query: {$or: [
+              {type: 'book'},
+              {type: 'dissertation'},
+              {type: 'map'}
+            ]}
+          }
+        ];
+        const queryPubIsmn = [
+          {
             query: {type: 'music'}
-          }];
-          const newPublisher = request.publisher;
-          const {publisher, ...publication} = {...request}
-
-          const result = await publishers.create({path: 'publishers', payload: formatPublisher(newPublisher)});
-
-          const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: publication.type === 'music' ? queryPubIsmn : queryPubIsbn, offset: null}});
-          const publicationList = await resPublication.json();
-          const publicationIdentifier = publicationList.results.map(item => item.identifier);
-          const identiferTitle = publicationIdentifier.reduce((acc, cVal) => acc.concat(cVal), []);
-          // Get list of title if identifiers
-          const slicedTitle = identiferTitle.map(item => item.id.slice(11, 15)); // ['0001', '0002', '0003']
-          const intIdentifierTitle = slicedTitle.map(item => Number(item));
-          const newIdentifierTitle = Math.max(...intIdentifierTitle) + 1;
-
-          let range;
-          if (publication.type === 'music') {
-            range = await ranges.read(`ranges/ismn/${newPublisher.ismnRange}`);
           }
-          if (publication.type !== 'music') {
-            range = await ranges.read(`ranges/isbn/${newPublisher.isbnRange}`);
-          }
+        ];
+        const newPublisher = request.publisher;
+        const publication = removePublisher(request);
+        const result = await publishers.create({path: 'publishers', payload: formatPublisher(newPublisher)});
 
-          const identifier = [];
-          if (publication.formatDetails.format === 'electronic' || publication.formatDetails.format === 'printed') {
-            identifier.push({
-              id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle),
-              type: publication.formatDetails.format
-            });
-          }
+        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: publication.type === 'music' ? queryPubIsmn : queryPubIsbn, offset: null}});
+        const publicationList = await resPublication.json();
+        const publicationIdentifier = publicationList.results.map(item => item.identifier);
+        const identiferTitle = publicationIdentifier.reduce((acc, cVal) => acc.concat(cVal), []);
+        // Get list of title if identifiers
+        const slicedTitle = identiferTitle.map(item => item.id.slice(11, 15)); // ['0001', '0002', '0003']
+        const intIdentifierTitle = slicedTitle.map(item => Number(item));
+        const newIdentifierTitle = Math.max(...intIdentifierTitle) + 1;
 
-          if (publication.formatDetails.format === 'printed-and-electronic') {
-            for (let i = 0; i < 2; i++) {
-              identifier.push({
-                id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle + i),
-                type: i === 0 ? 'printed' : 'electronic'
-              });
-            }
-          }
+        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${newPublisher.ismnRange}`) : await ranges.read(`ranges/isbn/${newPublisher.isbnRange}`);
 
-          const newPublication = {
-            ...publication,
-            publisher: result,
-            associatedRange: publication.type === 'music' ? newPublisher.ismnRange : newPublisher.isbnRange,
-            identifier: identifier
-          }
 
-          const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
-          logger.log('info', `Resource for ${type} isbn-ismn has been created`);
-          return {...request, createdResource: createdId}
+        const newPublication = {
+          ...publication,
+          publisher: result,
+          associatedRange: publication.type === 'music' ? newPublisher.ismnRange : newPublisher.isbnRange,
+          identifier: calculateIdentifier({newIdentifierTitle, range, publication})
+        };
+        const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
+        logger.log('info', `Resource for ${type} isbn-ismn has been created`);
+        return {...request, createdResource: createdId};
 
+      }
+
+      if (subtype === 'issn') {
+        // Fetch ranges
+        const identifierLists = await determineIdentifierList();
+
+        if (identifierLists.results.length === 0) {
+          return logger.log('info', 'No Active Ranges Found');
         }
+        const {results} = identifierLists;
+        const [activeRange] = results;
+        // Fetch Publication Issn
+        const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+        const publicationList = await resPublication.json();
+
+        const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
+        await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
+        logger.log('info', `Resource for ${type}${subtype} has been created`);
 
         if (subtype === 'issn') {
-          // Fetch ranges
-          const identifierLists = await determineIdentifierList();
-          
-          if (identifierLists.results.length === 0) {
-            return logger.log('info', 'No Active Ranges Found');
-          }
-          const {results} = identifierLists;
-          const [activeRange] = results;
-          // Fetch Publication Issn
-          const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
-          const publicationList = await resPublication.json();
-    
-          const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
-          await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
-          logger.log('info', `Resource for ${type}${subtype} has been created`);
-    
-          if (subtype === 'issn') {
-            isLastInRange(newPublication, activeRange, update, subtype);
-            return request;
-          }
-    
+          isLastInRange(newPublication, activeRange, update, subtype);
           return request;
-
         }
+
+        return request;
+
+      }
+    }
+
+    function calculateIdentifier({newIdentifierTitle, range, publication}) {
+      if (publication.formatDetails.format === 'electronic' || publication.formatDetails.format === 'printed') {
+        return {
+          id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle),
+          type: publication.formatDetails.format
+        };
+      }
+
+      if (publication.formatDetails.format === 'printed-and-electronic') {
+        const identifier = [
+          newIdentifierTitle,
+          newIdentifierTitle + 1
+        ];
+        const res = identifier.map((item, i) => ({
+          id: calculateIsbnIsmnIdentifier(range, item),
+          type: i === 0 ? 'printed' : 'electronic'
+        }));
+        return res;
+      }
     }
 
     function determineIdentifierList() {
@@ -451,24 +485,23 @@ export default function (agenda) {
   }
 
   function calculateIsbnIsmnIdentifier(range, title) {
-    const total = [];
     const beforeCheckDigit = `${range.prefix}${title}`;
     const split = beforeCheckDigit.split('');
-    split.map((item, i) => {
+    const calculateMultiply = split.map((item, i) => {
       if (i === 0 || i % 2 === 0) {
-        return total.push(Number(item));
+        return Number(item);
       }
 
-      return total.push(item * 3);
+      return Number(item * 3);
     });
-    const addTotal = total.reduce((acc, val) => acc + val, 0);
+    const addTotal = calculateMultiply.reduce((acc, val) => acc + val, 0);
     const remainder = addTotal % 10;
     const checkDigit = 10 - remainder;
-    const formatIdentifier = beforeCheckDigit.slice(0, 3) + '-' +
-                beforeCheckDigit.slice(3, 6) + '-' +
-                beforeCheckDigit.slice(6, 8) + '-' +
-                beforeCheckDigit.slice(8, 12) + '-' +
-                checkDigit;
+    const formatIdentifier = `${beforeCheckDigit.slice(0, 3)}-${
+      beforeCheckDigit.slice(3, 6)}-${
+      beforeCheckDigit.slice(6, 8)}-${
+      beforeCheckDigit.slice(8, 12)}-${
+      checkDigit}`;
     return formatIdentifier;
   }
 
@@ -480,6 +513,7 @@ export default function (agenda) {
     const range = Math.max(...slicedRange) + 1;
     return calculate(prefix, range);
 
+    // eslint-disable-next-line max-statements
     function calculate(prefix, range) {
       // Calculation(multiplication and addition of digits)
       const combine = prefix.concat(range).split('');

@@ -83,5 +83,5 @@ export const CLEAN_UP_JOBS = [
 
 export const MELINDA_JOBS = [
   {jobFreq: JOB_FREQ_PENDING, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_PENDING', jobCategory: 'isbn-ismn', jobState: 'pending'},
-  {jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'isbn-ismn', jobState: 'inProgress'},
+  {jobFreq: JOB_FREQ_IN_PROGRESS, jobName: 'JOB_PUBLICATION_ISBN_ISMN_BIBLIOGRAPHIC_METADATA_INPROGRESS', jobCategory: 'isbn-ismn', jobState: 'inProgress'}
 ];

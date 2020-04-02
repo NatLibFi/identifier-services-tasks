@@ -44,10 +44,9 @@ async function run() {
   }
 
   function handleSignal(signal) {
-    if (task) {
-      return task.stop();
+    if (task) { // eslint-disable-line functional/no-conditional-statement
+      task.stop();
     }
-
     handleInterrupt(signal);
   }
 }
