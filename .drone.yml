@@ -31,8 +31,8 @@ trigger:
 ---
 kind: secret
 name: docker_username
-data: CDo8p0pAR6wGCGnm2YfzKlCnYB0WBHySGzAJdskGfHkNv9XAozhKP3z3r4DTyZFBbXI=
+data: cgXziF/ZPF0xznk5dYsc+eLXe0mBxznMmRHGQLVpRwKsf01Rm+4QnaYncXw5StR1KpM=
 ---
 kind: secret
 name: docker_password
-data: /bXWW4LxNo82YJ94HDatI8zERuc7sDy495Xc/SIW19wc+eOyYXKaV7oWMDK47ChoiRz2zRlGXcNFXqFRLTaJ4w0L8LywnoJjA+HzqxTTzm4u+nDsyeqAcp0zB/k=
+data: K3JEpbP87rfkeanavo85U3SwRzMD+I/zI12u+hJZpl3hf9pvSefImo772wfXxGa+4oiSTSi0prOIOWa1+Un/gt6cqbNg9DNUIRkm3YObXNSepo1dRNNSKl2JICU=
