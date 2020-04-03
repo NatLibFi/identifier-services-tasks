@@ -28,3 +28,11 @@ steps:
     event: [push]
 trigger:
   event: [push]
+---
+kind: secret
+name: docker_username
+data: cgXziF/ZPF0xznk5dYsc+eLXe0mBxznMmRHGQLVpRwKsf01Rm+4QnaYncXw5StR1KpM=
+---
+kind: secret
+name: docker_password
+data: K3JEpbP87rfkeanavo85U3SwRzMD+I/zI12u+hJZpl3hf9pvSefImo772wfXxGa+4oiSTSi0prOIOWa1+Un/gt6cqbNg9DNUIRkm3YObXNSepo1dRNNSKl2JICU=
