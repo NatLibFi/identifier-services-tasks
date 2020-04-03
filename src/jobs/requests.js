@@ -167,7 +167,6 @@ export default function (agenda) {
   async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
     const {requests} = client;
     await perform();
-    // eslint-disable-next-line max-statements
     async function perform() {
       if (type === 'users' || type === 'publishers') {
         const response = await requests.fetchList({path: `requests/${type}`, query});
@@ -189,7 +188,6 @@ export default function (agenda) {
     }
   }
 
-  // eslint-disable-next-line max-statements
   async function createResource(request, type, subtype) {
     const {update} = client.requests;
     const result = await create(request, type, subtype);
@@ -325,7 +323,6 @@ export default function (agenda) {
       ]) => ({...acc, [key]: value}), {});
   }
 
-  // eslint-disable-next-line max-statements
   async function create(request, type, subtype) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
@@ -538,14 +535,12 @@ export default function (agenda) {
     const range = Math.max(...slicedRange) + 1;
     return calculate(prefix, range);
 
-    // eslint-disable-next-line max-statements
     function calculate(prefix, range) {
       // Calculation(multiplication and addition of digits)
       const combine = prefix.concat(range).split('');
       const sum = combine.reduce((acc, item, index) => {
         const m = (combine.length + 1 - index) * item;
-        // eslint-disable-next-line no-param-reassign
-        acc = Number(acc) + Number(m);
+        acc = Number(acc) + Number(m); // eslint-disable-line no-param-reassign
         return acc;
       }, 0);
 
