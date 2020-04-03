@@ -362,6 +362,7 @@ export default function (agenda) {
           ...publication,
           publisher: result,
           associatedRange: publication.type === 'music' ? newPublisher.ismnRange : newPublisher.isbnRange,
+          metadataReference: {state: 'pending'},
           identifier: calculateIdentifier({newIdentifierTitle, range, publication})
         };
         const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
