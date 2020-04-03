@@ -45,7 +45,8 @@ async function run() {
 
   function handleSignal(signal) {
     if (task) {
-      return task.stop();
+      task.stop();
+      return handleInterrupt(signal);
     }
 
     handleInterrupt(signal);

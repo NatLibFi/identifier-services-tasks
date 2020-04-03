@@ -68,7 +68,7 @@ export default function (agenda) {
       await processRequest({
         client, processCallback,
         query: {queries: [{query: {state, backgroundProcessingState: 'pending'}}], offset: null},
-        messageCallback: count => `${count} requests are pending`, type, subtype
+        messageCallback: count => `${count} requests for ${type} ${subtype} are pending`, type, subtype
       });
     }
   }
@@ -82,7 +82,7 @@ export default function (agenda) {
             name: `${type} request new`,
             getTemplate,
             SMTP_URL,
-            API_EMAIL: await getUserEmail(request.creator)
+            API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
           });
           await sendEmail({
             name: `${type} request new`,
@@ -101,6 +101,7 @@ export default function (agenda) {
           API_EMAIL
         });
         return setBackground(request, type, subtype, 'processed');
+
       }
 
       if (request.state === 'rejected') {
@@ -109,7 +110,7 @@ export default function (agenda) {
           args: request.rejectionReason,
           getTemplate,
           SMTP_URL,
-          API_EMAIL: await getUserEmail(request.creator)
+          API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
         });
         return setBackground(request, type, subtype, 'processed');
       }
@@ -122,16 +123,13 @@ export default function (agenda) {
         }
 
         if (type !== 'users') {
-          await sendEmail({
+          return sendEmail({
             name: `${type} request accepted`,
             getTemplate,
             SMTP_URL,
-            API_EMAIL: await getUserEmail(request.creator)
+            API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
           });
-          return setBackground(request, type, subtype, 'processed');
         }
-
-        return setBackground(request, type, subtype, 'processed');
       }
     }));
 
@@ -146,12 +144,12 @@ export default function (agenda) {
       }
 
       if (type === 'publishers') {
-        await requests.update({path: `requests/${type}/${request.id}`, filteredDoc});
+        await requests.update({path: `requests/${type}/${request.id}`, payload: filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
       if (type === 'publications') {
-        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, filteredDoc});
+        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
 
@@ -193,7 +191,8 @@ export default function (agenda) {
   async function createResource(request, type, subtype) {
     const {update} = client.requests;
     const result = await create(request, type, subtype);
-    const payload = {...request, createdResource: result.id};
+    const filteredDoc = filterDoc(result);
+    const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
 
     if (type === 'users') {
       await update({path: `requests/${type}/${request.id}`, payload});
@@ -209,12 +208,30 @@ export default function (agenda) {
       await update({path: `requests/${type}/${subtype}/${request.id}`, payload});
       return logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
     }
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => filter(key))
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'isbnRange',
+        'ismnRange',
+        'rejectionReason',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
+    }
   }
 
   function formatPublisher(request) {
     const filteredDoc = filterDoc(request);
     const formatRequest = {
       ...filteredDoc,
+      email: request.publisherEmail,
       primaryContact: request.primaryContact.map(item => item.email),
       activity: {
         active: true,
@@ -225,17 +242,24 @@ export default function (agenda) {
     return formatRequest;
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'notes' === false)
-        .filter(([key]) => key === 'createdResource' === false)
-        .filter(([key]) => key === 'id' === false)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'notes',
+        'createdResource',
+        'publisherEmail',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -245,18 +269,24 @@ export default function (agenda) {
 
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'notes' === false)
-        .filter(([key]) => key === 'lastUpdated' === false)
-        .filter(([key]) => key === 'id' === false)
-        .filter(([key]) => key === 'role' === false)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'notes',
+        'lastUpdated',
+        'role',
+        'id'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -265,16 +295,22 @@ export default function (agenda) {
     return {...filteredDoc};
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(([key]) => key === 'backgroundProcessingState' === false)
-        .filter(([key]) => key === 'state' === false)
-        .filter(([key]) => key === 'rejectionReason' === false)
-        .filter(([key]) => key === 'creator' === false)
-        .filter(([key]) => key === 'mongoId' === false)
-        .filter(([key]) => key === 'lastUpdated' === false)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
         ]) => ({...acc, [key]: value}), {});
+    }
+    function filter(key) {
+      const allowedKeys = [
+        'backgroundProcessingState',
+        'state',
+        'rejectionReason',
+        'creator',
+        'mongoId',
+        'lastUpdated'
+      ];
+      return allowedKeys.includes(key) === false;
     }
   }
 
@@ -293,9 +329,9 @@ export default function (agenda) {
     }
 
     if (type === 'publishers') {
-      await publishers.create({path: type, payload: formatPublisher(request)});
+      const result = await publishers.create({path: type, payload: formatPublisher(request)});
       logger.log('info', `Resource for ${type} has been created`);
-      return request;
+      return {...request, createdResource: result};
     }
 
     if (type === 'publications') {
@@ -309,9 +345,10 @@ export default function (agenda) {
       // Fetch Publication Issn
       const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
       const publicationList = await resPublication.json();
-
+      // Create Publisher if user is anonymous or publisher details is provided
+      const payload = Object.keys(request.publisher).length === 0 ? request : await createPublisher(request);
       const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
-      await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...request, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
+      await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
       logger.log('info', `Resource for ${type}${subtype} has been created`);
 
       if (subtype === 'issn') {
@@ -320,6 +357,14 @@ export default function (agenda) {
       }
 
       return request;
+    }
+
+    async function createPublisher(request) {
+      if (subtype === 'issn') {
+        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
+        logger.log('info', `Resource for publishers has been created`);
+        return {...request, publisher};
+      }
     }
 
     function determineIdentifierList() {
@@ -461,5 +506,10 @@ export default function (agenda) {
     const {users} = client;
     const readResponse = await users.read(`users/${userId}`);
     return readResponse.emails[0].value;
+  }
+
+  function isEmail(text) {
+    const regex = /(?<id>[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/giu;
+    return regex.test(text);
   }
 }
