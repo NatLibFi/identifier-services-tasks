@@ -210,7 +210,7 @@ export default function (agenda) {
     }
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(filter)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
@@ -242,7 +242,7 @@ export default function (agenda) {
     return formatRequest;
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(filter)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
@@ -269,7 +269,7 @@ export default function (agenda) {
 
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(filter)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
@@ -295,7 +295,7 @@ export default function (agenda) {
     return {...filteredDoc};
     function filterDoc(doc) {
       return Object.entries(doc)
-        .filter(filter)
+        .filter(([key]) => filter(key))
         .reduce((acc, [
           key,
           value
