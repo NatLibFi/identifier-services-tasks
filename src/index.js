@@ -48,7 +48,6 @@ async function run() {
       task.stop();
       return handleInterrupt(signal);
     }
-
     handleInterrupt(signal);
   }
 }
