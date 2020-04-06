@@ -540,8 +540,7 @@ export default function (agenda) {
       const combine = prefix.concat(range).split('');
       const sum = combine.reduce((acc, item, index) => {
         const m = (combine.length + 1 - index) * item;
-        acc = Number(acc) + Number(m); // eslint-disable-line no-param-reassign
-        return acc;
+        return Number(acc) + Number(m);
       }, 0);
 
       // Get the remainder and calculate it to return the actual check digit
