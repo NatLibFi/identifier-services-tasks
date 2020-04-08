@@ -314,15 +314,6 @@ export default function (agenda) {
     }
   }
 
-  function removePublisher(doc) {
-    return Object.entries(doc)
-      .filter(([key]) => key === 'publisher' === false)
-      .reduce((acc, [
-        key,
-        value
-      ]) => ({...acc, [key]: value}), {});
-  }
-
   async function create(request, type, subtype) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
@@ -345,47 +336,23 @@ export default function (agenda) {
 
     if (type === 'publications') {
       if (subtype === 'isbn-ismn') {
-        const queryPubIsbn = [
-          {
-            query: {$or: [
-              {type: 'book'},
-              {type: 'dissertation'},
-              {type: 'map'}
-            ]}
-          }
-        ];
-        const queryPubIsmn = [
-          {
-            query: {type: 'music'}
-          }
-        ];
-        const newPublisher = request.publisher;
-        const publication = removePublisher(request);
-        const result = await publishers.create({path: 'publishers', payload: formatPublisher(newPublisher)});
-
-        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: publication.type === 'music' ? queryPubIsmn : queryPubIsbn, offset: null}});
+        // Remove Publisher from Publication creation request
+        const publication = await createPublisher(request);
+        // Create Publisher
+        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${request.publisher.range}`) : await ranges.read(`ranges/isbn/${request.publisher.range}`);
+        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: [{query: {associatedRange: request.publisher.range}}], offset: null}});
         const publicationList = await resPublication.json();
-        const publicationIdentifier = publicationList.results.map(item => item.identifier);
-        const identiferTitle = publicationIdentifier.reduce((acc, cVal) => acc.concat(cVal), []);
-        // Get list of title if identifiers
-        const slicedTitle = identiferTitle.map(item => item.id.slice(11, 15)); // ['0001', '0002', '0003']
-        const intIdentifierTitle = slicedTitle.map(item => Number(item));
-        const newIdentifierTitle = Math.max(...intIdentifierTitle) + 1;
-
-        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${newPublisher.ismnRange}`) : await ranges.read(`ranges/isbn/${newPublisher.isbnRange}`);
-
-
+        const newIdentifierTitle = calculateIdentifierTitle(publicationList, range);
         const newPublication = {
           ...publication,
-          publisher: result,
-          associatedRange: publication.type === 'music' ? newPublisher.ismnRange : newPublisher.isbnRange,
+          associatedRange: request.publisher.range,
           metadataReference: {state: 'pending'},
-          identifier: calculateIdentifier({newIdentifierTitle, range, publication})
+          identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
+          publicationType: 'isbn-ismn'
         };
         const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
         logger.log('info', `Resource for ${type} isbn-ismn has been created`);
         return {...request, createdResource: createdId};
-
       }
 
       if (subtype === 'issn') {
@@ -410,6 +377,33 @@ export default function (agenda) {
 
       }
     }
+    // Create and check publisher exist
+    async function createPublisher(request) {
+      const query = {queries: [{query: {email: request.publisher.publisherEmail}}], offset: null};
+      const response = await publishers.fetchList({path: 'publishers', query});
+      const resultPublisher = await response.json();
+      if (resultPublisher.results.length === 0) {
+        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
+        logger.log('info', `Resource for publishers has been created`);
+        return {...request, publisher};
+      }
+      logger.log('info', `Resource for publishers has already exists, using existing resource`);
+      return {...request, publisher: resultPublisher.results[0].id};
+    }
+
+    function calculateIdentifierTitle(publicationList, range) {
+      if (publicationList.results.length === 0) {
+        return range.rangeStart;
+      }
+
+      const publicationIdentifier = publicationList.results.map(item => item.identifier);
+      const identiferTitle = publicationIdentifier.reduce((acc, cVal) => acc.concat(cVal), []);
+      // Get list of title if identifiers
+      const slicedTitle = identiferTitle.map(item => item.id.slice(11, 15)); // ['0001', '0002', '0003']
+      const intIdentifierTitle = slicedTitle.map(item => Number(item));
+      const newIdentifierTitle = Math.max(...intIdentifierTitle) + 1;
+      return newIdentifierTitle;
+    }
 
     function calculateIdentifier({newIdentifierTitle, range, publication}) {
       if (publication.formatDetails.format === 'electronic' || publication.formatDetails.format === 'printed') {
@@ -429,14 +423,6 @@ export default function (agenda) {
           type: i === 0 ? 'printed' : 'electronic'
         }));
         return res;
-      }
-    }
-
-    async function createPublisher(request) {
-      if (subtype === 'issn') {
-        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
-        logger.log('info', `Resource for publishers has been created`);
-        return {...request, publisher};
       }
     }
 
