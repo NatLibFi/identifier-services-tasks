@@ -314,15 +314,6 @@ export default function (agenda) {
     }
   }
 
-  function removePublisher(doc) {
-    return Object.entries(doc)
-      .filter(([key]) => key === 'publisher' === false)
-      .reduce((acc, [
-        key,
-        value
-      ]) => ({...acc, [key]: value}), {});
-  }
-
   async function create(request, type, subtype) {
     const rangeQueries = {queries: [{query: {active: true}}], offset: null};
     const {users, publishers, publications, ranges} = client;
@@ -345,29 +336,23 @@ export default function (agenda) {
 
     if (type === 'publications') {
       if (subtype === 'isbn-ismn') {
-        // Get publisher from publication creation request
-        const newPublisher = request.publisher;
         // Remove Publisher from Publication creation request
-        const publication = removePublisher(request);
+        const publication = await createPublisher(request);
         // Create Publisher
-        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${newPublisher.range}`) : await ranges.read(`ranges/isbn/${newPublisher.range}`);
-        const result = await publishers.create({path: 'publishers', payload: formatPublisher(newPublisher)});
-
-        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: [{query: {associatedRange: newPublisher.range}}], offset: null}});
+        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${request.publisher.range}`) : await ranges.read(`ranges/isbn/${request.publisher.range}`);
+        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: [{query: {associatedRange: request.publisher.range}}], offset: null}});
         const publicationList = await resPublication.json();
-
         const newIdentifierTitle = calculateIdentifierTitle(publicationList, range);
         const newPublication = {
           ...publication,
-          publisher: result,
-          associatedRange: newPublisher.range,
+          associatedRange: request.publisher.range,
           metadataReference: {state: 'pending'},
-          identifier: calculateIdentifier({newIdentifierTitle, range, publication})
+          identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
+          publicationType: 'isbn-ismn'
         };
         const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
         logger.log('info', `Resource for ${type} isbn-ismn has been created`);
         return {...request, createdResource: createdId};
-
       }
 
       if (subtype === 'issn') {
@@ -391,6 +376,19 @@ export default function (agenda) {
         return request;
 
       }
+    }
+    // Create and check publisher exist
+    async function createPublisher(request) {
+      const query = {queries: [{query: {email: request.publisher.publisherEmail}}], offset: null};
+      const response = await publishers.fetchList({path: 'publishers', query});
+      const resultPublisher = await response.json();
+      if (resultPublisher.results.length === 0) {
+        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
+        logger.log('info', `Resource for publishers has been created`);
+        return {...request, publisher};
+      }
+      logger.log('info', `Resource for publishers has already exists, using existing resource`);
+      return {...request, publisher: resultPublisher.results[0].id};
     }
 
     function calculateIdentifierTitle(publicationList, range) {
@@ -425,14 +423,6 @@ export default function (agenda) {
           type: i === 0 ? 'printed' : 'electronic'
         }));
         return res;
-      }
-    }
-
-    async function createPublisher(request) {
-      if (subtype === 'issn') {
-        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
-        logger.log('info', `Resource for publishers has been created`);
-        return {...request, publisher};
       }
     }
 
