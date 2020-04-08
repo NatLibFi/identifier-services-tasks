@@ -390,7 +390,8 @@ export default function (agenda) {
 
       if (subtype === 'issn') {
         // Fetch ranges
-        const identifierLists = await determineIdentifierList();
+        const response = await ranges.fetchList({path: 'ranges/issn', query: rangeQueries});
+        const identifierLists = await response.json();
         if (identifierLists.results.length === 0) {
           return logger.log('info', 'No Active Ranges Found');
         }
@@ -433,26 +434,16 @@ export default function (agenda) {
     }
 
     async function createPublisher(request) {
-      if (subtype === 'issn') {
+      const query = {queries: [{query: {email: request.publisher.publisherEmail}}], offset: null};
+      const response = await publishers.fetchList({path: 'publishers', query});
+      const resultPublisher = await response.json();
+      if (resultPublisher.results.length === 0) {
         const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
         logger.log('info', `Resource for publishers has been created`);
         return {...request, publisher};
       }
-    }
-
-    function determineIdentifierList() {
-      if (subtype === 'isbn-ismn') {
-        if (request.type === 'music') {
-          return identifierLists('ismn');
-        }
-        return identifierLists('isbn');
-      }
-      return identifierLists('issn');
-
-      async function identifierLists(v) {
-        const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
-        return response.json();
-      }
+      logger.log('info', `Resource for publishers has already exists, using existing resource`);
+      return {...request, publisher: resultPublisher.results[0].id};
     }
   }
 
