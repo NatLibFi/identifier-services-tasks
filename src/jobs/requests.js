@@ -231,6 +231,7 @@ export default function (agenda) {
     const filteredDoc = filterDoc(request);
     const formatRequest = {
       ...filteredDoc,
+      request: request.id,
       email: request.publisherEmail,
       primaryContact: request.primaryContact.map(item => item.email),
       activity: {
@@ -265,7 +266,7 @@ export default function (agenda) {
 
   function formatPublication(request) {
     const filteredDoc = filterDoc(request);
-    return {...filteredDoc};
+    return {...filteredDoc, request: request.id};
 
     function filterDoc(doc) {
       return Object.entries(doc)
@@ -357,7 +358,8 @@ export default function (agenda) {
 
       if (subtype === 'issn') {
         // Fetch ranges
-        const identifierLists = await determineIdentifierList();
+        const response = await ranges.fetchList({path: 'ranges/issn', query: rangeQueries});
+        const identifierLists = await response.json();
         if (identifierLists.results.length === 0) {
           return logger.log('info', 'No Active Ranges Found');
         }
@@ -367,7 +369,7 @@ export default function (agenda) {
         const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
         const publicationList = await resPublication.json();
         // Create Publisher if user is anonymous or publisher details is provided
-        const payload = Object.keys(request.publisher).length === 0 ? request : await createPublisher(request);
+        const payload = await createPublisher(request);
         const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
         await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
         logger.log('info', `Resource for ${type}${subtype} has been created`);
@@ -379,16 +381,19 @@ export default function (agenda) {
     }
     // Create and check publisher exist
     async function createPublisher(request) {
-      const query = {queries: [{query: {email: request.publisher.publisherEmail}}], offset: null};
+      if (Object.keys(request.publisher).length === 0) {
+        return request;
+      }
+      const query = {queries: [{query: {request: request.id}}], offset: null};
       const response = await publishers.fetchList({path: 'publishers', query});
       const resultPublisher = await response.json();
-      if (resultPublisher.results.length === 0) {
-        const publisher = await publishers.create({path: 'publishers', payload: formatPublisher(request.publisher)});
-        logger.log('info', `Resource for publishers has been created`);
-        return {...request, publisher};
+      if (resultPublisher.results.length > 0) {
+        logger.log('info', `Resource for publishers has already exists, using existing resource`);
+        return {...request, publisher: resultPublisher.results[0].id};
       }
-      logger.log('info', `Resource for publishers has already exists, using existing resource`);
-      return {...request, publisher: resultPublisher.results[0].id};
+      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id})});
+      logger.log('info', `Resource for publishers has been created`);
+      return {...request, publisher};
     }
 
     function calculateIdentifierTitle(publicationList, range) {
@@ -423,21 +428,6 @@ export default function (agenda) {
           type: i === 0 ? 'printed' : 'electronic'
         }));
         return res;
-      }
-    }
-
-    function determineIdentifierList() {
-      if (subtype === 'isbn-ismn') {
-        if (request.type === 'music') {
-          return identifierLists('ismn');
-        }
-        return identifierLists('isbn');
-      }
-      return identifierLists('issn');
-
-      async function identifierLists(v) {
-        const response = await ranges.fetchList({path: `ranges/${v}`, query: rangeQueries});
-        return response.json();
       }
     }
   }
