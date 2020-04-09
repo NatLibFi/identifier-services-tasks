@@ -412,10 +412,12 @@ export default function (agenda) {
 
     function calculateIdentifier({newIdentifierTitle, range, publication}) {
       if (publication.formatDetails.format === 'electronic' || publication.formatDetails.format === 'printed') {
-        return {
-          id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle),
-          type: publication.formatDetails.format
-        };
+        return [
+          {
+            id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle),
+            type: publication.formatDetails.format
+          }
+        ];
       }
 
       if (publication.formatDetails.format === 'printed-and-electronic') {
