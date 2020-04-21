@@ -343,13 +343,18 @@ export default function (agenda) {
         const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: [{query: {associatedRange: request.publisher.range}}], offset: null}});
         const publicationList = await resPublication.json();
         const newIdentifierTitle = calculateIdentifierTitle(publicationList, range);
-        const newPublication = {
+        const newPublication = publication.isPublic ? {
           ...publication,
           associatedRange: request.publisher.range,
           metadataReference: {state: 'pending'},
           identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
           publicationType: 'isbn-ismn'
-        };
+        }
+          : {
+            ...publication,
+            metadataReference: {state: 'pending'},
+            publicationType: 'isbn-ismn'
+          };
         const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
         logger.log('info', `Resource for ${type} isbn-ismn has been created`);
         return {...request, createdResource: createdId};
