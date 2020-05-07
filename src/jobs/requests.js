@@ -580,7 +580,8 @@ export default function (agenda) {
   async function getUserEmail(userId) {
     const {users} = client;
     const readResponse = await users.read(`users/${userId}`);
-    console.log(readResponse)
+    // eslint-disable-next-line no-console
+    console.log(readResponse);
     return readResponse.emails[0].value;
   }
 
