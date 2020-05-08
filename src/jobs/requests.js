@@ -372,8 +372,12 @@ export default function (agenda) {
         const [activeRange] = results;
         const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: {associatedRange: activeRange.id}, offset: null, calculateIdentifier: true}});
         const publicationList = await resPublication.json();
+        // eslint-disable-next-line no-console
+        console.log(publicationList)
         const payload = await createPublisher(request);
         const [resultPublication] = publicationList;
+        // eslint-disable-next-line no-console
+        console.log('----------', resultPublication);
         const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication.identifier, subtype, format: payload.formatDetails.format});
         await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
         logger.log('info', `Resource for ${type}${subtype} has been created`);
