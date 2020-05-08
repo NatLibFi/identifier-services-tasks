@@ -373,7 +373,7 @@ export default function (agenda) {
         const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: {associatedRange: activeRange.id}, offset: null, calculateIdentifier: true}});
         const publicationList = await resPublication.json();
         // eslint-disable-next-line no-console
-        console.log(publicationList)
+        console.log(publicationList);
         const payload = await createPublisher(request);
         const [resultPublication] = publicationList;
         // eslint-disable-next-line no-console
