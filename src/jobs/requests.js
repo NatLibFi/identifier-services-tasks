@@ -41,7 +41,7 @@ import {
   API_EMAIL
 } from '../config';
 
-const {createLogger, sendEmail} = Utils;
+const {createLogger, sendEmail, calculateNewISSN} = Utils;
 
 export default function (agenda) {
   const logger = createLogger();
@@ -370,12 +370,11 @@ export default function (agenda) {
         }
         const {results} = identifierLists;
         const [activeRange] = results;
-        // Fetch Publication Issn
-        const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: [{query: {associatedRange: activeRange.id}}], offset: null}});
+        const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: {associatedRange: activeRange.id}, offset: null, calculateIdentifier: true}});
         const publicationList = await resPublication.json();
-        // Create Publisher if user is anonymous or publisher details is provided
         const payload = await createPublisher(request);
-        const newPublication = calculateNewIdentifier({identifierList: publicationList.results.map(item => item.identifier), subtype});
+        const [resultPublication] = publicationList;
+        const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication.identifier, subtype, format: payload.formatDetails.format});
         await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
         logger.log('info', `Resource for ${type}${subtype} has been created`);
         isLastInRange(newPublication, activeRange, update, subtype);
@@ -396,7 +395,7 @@ export default function (agenda) {
         logger.log('info', `Resource for publishers has already exists, using existing resource`);
         return {...request, publisher: resultPublisher.results[0].id};
       }
-      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id})});
+      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id, requestPublicationType: subtype})});
       logger.log('info', `Resource for publishers has been created`);
       return {...request, publisher};
     }
@@ -479,9 +478,9 @@ export default function (agenda) {
     return result;
   }
 
-  function calculateNewIdentifier({identifierList, subtype}) {
+  function calculateNewIdentifier({prevIdentifier, subtype, format}) {
     if (subtype === 'issn') {
-      return calculateNewISSN(identifierList);
+      return calculateNewISSN({prevIdentifier, format});
     }
 
     if (subtype === 'isbnIsmn') {
@@ -508,37 +507,6 @@ export default function (agenda) {
       beforeCheckDigit.slice(8, 12)}-${
       checkDigit}`;
     return formatIdentifier;
-  }
-
-  function calculateNewISSN(array) {
-    // Get prefix from array of publication ISSN identifiers assuming same prefix at the moment
-    const prefix = array[0].slice(0, 4);
-    const slicedRange = array.map(item => item.slice(5, 8));
-    // Get 3 digit of 2nd half from the highest identifier and adding 1 to it
-    const range = Math.max(...slicedRange) + 1;
-    return calculate(prefix, range);
-
-    function calculate(prefix, range) {
-      // Calculation(multiplication and addition of digits)
-      const combine = prefix.concat(range).split('');
-      const sum = combine.reduce((acc, item, index) => {
-        const m = (combine.length + 1 - index) * item;
-        return Number(acc) + Number(m);
-      }, 0);
-
-      // Get the remainder and calculate it to return the actual check digit
-      const remainder = sum % 11;
-      if (remainder === 0) {
-        const checkDigit = '0';
-        const result = `${prefix}-${range}${checkDigit}`;
-        return result;
-      }
-
-      const diff = 11 - remainder;
-      const checkDigit = diff === 10 ? 'X' : diff.toString();
-      const result = `${prefix}-${range}${checkDigit}`;
-      return result;
-    }
   }
 
   async function createLinkAndSendEmail(type, request, response) {
@@ -581,7 +549,6 @@ export default function (agenda) {
     const {users} = client;
     const readResponse = await users.read(`users/${userId}`);
     // eslint-disable-next-line no-console
-    console.log(readResponse);
     return readResponse.emails[0].value;
   }
 
