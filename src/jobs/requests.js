@@ -378,7 +378,7 @@ export default function (agenda) {
         const [resultPublication] = publicationList;
         // eslint-disable-next-line no-console
         console.log('----------', resultPublication);
-        const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication.identifier, subtype, format: payload.formatDetails.format});
+        const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication && resultPublication.identifier, subtype, format: payload.formatDetails.format, activeRange});
         await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
         logger.log('info', `Resource for ${type}${subtype} has been created`);
         isLastInRange(newPublication, activeRange, update, subtype);
@@ -482,9 +482,9 @@ export default function (agenda) {
     return result;
   }
 
-  function calculateNewIdentifier({prevIdentifier, subtype, format}) {
+  function calculateNewIdentifier({prevIdentifier, subtype, format, activeRange}) {
     if (subtype === 'issn') {
-      return calculateNewISSN({prevIdentifier, format});
+      return calculateNewISSN({prevIdentifier, format, activeRange});
     }
 
     if (subtype === 'isbnIsmn') {
