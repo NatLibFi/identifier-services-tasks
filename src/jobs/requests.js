@@ -341,7 +341,7 @@ export default function (agenda) {
         const publication = await createPublisher(request);
         // Create Publisher
         const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${request.publisher.range}`) : await ranges.read(`ranges/isbn/${request.publisher.range}`);
-        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: [{query: {associatedRange: request.publisher.range}}], offset: null}});
+        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: {associatedRange: request.publisher.range}, offset: null, calculateIdentifier: true}});
         const publicationList = await resPublication.json();
         const newIdentifierTitle = calculateIdentifierTitle(publicationList, range);
         const newPublication = publication.isPublic ? {
@@ -409,12 +409,8 @@ export default function (agenda) {
         return range.rangeStart;
       }
 
-      const publicationIdentifier = publicationList.results.map(item => item.identifier);
-      const identiferTitle = publicationIdentifier.reduce((acc, cVal) => acc.concat(cVal), []);
-      // Get list of title if identifiers
-      const slicedTitle = identiferTitle.map(item => item.id.slice(11, 15)); // ['0001', '0002', '0003']
-      const intIdentifierTitle = slicedTitle.map(item => Number(item));
-      const newIdentifierTitle = Math.max(...intIdentifierTitle) + 1;
+      const slicedTitle = publicationList[0].identifier.id.slice(11, 15); // '0001'
+      const newIdentifierTitle = Number(slicedTitle) + 1;
       return newIdentifierTitle;
     }
 
