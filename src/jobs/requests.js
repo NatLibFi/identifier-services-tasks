@@ -372,10 +372,8 @@ export default function (agenda) {
         const [activeRange] = results;
         const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: {associatedRange: activeRange.id}, offset: null, calculateIdentifier: true}});
         const publicationList = await resPublication.json();
-        // eslint-disable-next-line no-console
         const payload = await createPublisher(request);
         const [resultPublication] = publicationList;
-        // eslint-disable-next-line no-console
         const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication && resultPublication.identifier, subtype, format: payload.formatDetails.format, activeRange});
         await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
         logger.log('info', `Resource for ${type}${subtype} has been created`);
@@ -546,7 +544,6 @@ export default function (agenda) {
   async function getUserEmail(userId) {
     const {users} = client;
     const readResponse = await users.read(`users/${userId}`);
-    // eslint-disable-next-line no-console
     return readResponse.emails[0].value;
   }
 
