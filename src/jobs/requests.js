@@ -230,8 +230,8 @@ export default function (agenda) {
   function formatPublisher(request) {
     if (request.requestPublicationType === 'dissertation') {
       const newRequest = {
-        universityName: request.universityName,
-        universityCity: request.universityCity,
+        name: request.university.name,
+        city: request.university.city,
         requestPublicationType: request.requestPublicationType,
         publisherType: 'university'
       };
@@ -399,12 +399,7 @@ export default function (agenda) {
         return request;
       }
       // Check if the publisher has created already
-      const query = request.type === 'dissertation' ? {queries: [
-        {query: {$or: [
-          {universityName: request.publisher.universityName},
-          {universityCity: request.publisher.universityCity}
-        ]}}
-      ], offset: null} : {queries: [{query: {request: request.id}}], offset: null};
+      const query = request.type === 'dissertation' ? {queries: [{query: {name: request.publisher.university.name}}], offset: null} : {queries: [{query: {request: request.id}}], offset: null};
 
       const response = await publishers.fetchList({path: 'publishers', query});
       const resultPublisher = await response.json();
