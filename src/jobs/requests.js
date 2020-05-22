@@ -228,6 +228,16 @@ export default function (agenda) {
   }
 
   function formatPublisher(request) {
+    if (request.requestPublicationType === 'dissertation') {
+      const newRequest = {
+        name: request.university.name,
+        city: request.university.city,
+        requestPublicationType: request.requestPublicationType,
+        publisherType: 'university'
+      };
+      return newRequest;
+    }
+
     const filteredDoc = filterDoc(request);
     const formatRequest = {
       ...filteredDoc,
@@ -388,20 +398,23 @@ export default function (agenda) {
       if (Object.keys(request.publisher).length === 0) {
         return request;
       }
-      const query = {queries: [{query: {request: request.id}}], offset: null};
+      // Check if the publisher has created already
+      const query = request.type === 'dissertation' ? {queries: [{query: {name: request.publisher.university.name}}], offset: null} : {queries: [{query: {request: request.id}}], offset: null};
+
       const response = await publishers.fetchList({path: 'publishers', query});
       const resultPublisher = await response.json();
       if (resultPublisher.results.length > 0) {
         logger.log('info', `Resource for publishers has already exists, using existing resource`);
         return {...request, publisher: resultPublisher.results[0].id};
       }
-      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id, requestPublicationType: subtype})});
+
+      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id, requestPublicationType: request.type === 'dissertation' ? 'dissertation' : subtype})});
       logger.log('info', `Resource for publishers has been created`);
       return {...request, publisher};
     }
 
     function calculateIdentifierTitle(publicationList, range) {
-      if (publicationList.results.length === 0) {
+      if (publicationList.length === 0) {
         return range.rangeStart;
       }
 
