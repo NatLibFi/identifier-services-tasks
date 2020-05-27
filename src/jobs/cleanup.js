@@ -32,7 +32,7 @@ import {
   API_PASSWORD,
   API_CLIENT_USER_AGENT,
   CLEAN_UP_JOBS,
-  REQUEST_TTL
+  CLEANUP_REQUEST_TTL
 } from '../config';
 const {createLogger} = Utils;
 import moment from 'moment';
@@ -75,7 +75,7 @@ export default function (agenda) {
     }
 
     function filterRequests(requests) {
-      return requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(REQUEST_TTL))
+      return requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(CLEANUP_REQUEST_TTL))
         .isBefore(moment()));
     }
 
