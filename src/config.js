@@ -63,6 +63,7 @@ export const JOB_BACKGROUND_PROCESSING_IN_PROGRESS = 'inProgress';
 export const JOB_BACKGROUND_PROCESSING_PROCESSED = 'processed';
 
 export const REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '30 seconds'});
+export const CLEANUP_REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '30 seconds'});
 
 export const REQUEST_JOBS = [
   {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW', jobCategory: 'users', jobState: 'new'},
@@ -80,9 +81,9 @@ export const REQUEST_JOBS = [
 ];
 
 export const CLEAN_UP_JOBS = [
-  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS', jobCategory: 'publishers'},
-  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN', jobCategory: 'publications', jobSubCat: 'isbn-ismn'},
-  {jobFreq: REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN', jobCategory: 'publications', jobSubCat: 'issn'}
+  {jobFreq: CLEANUP_REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_PUBLISHERS', jobCategory: 'publishers'},
+  {jobFreq: CLEANUP_REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISBN_ISMN', jobCategory: 'publications', jobSubCat: 'isbn-ismn'},
+  {jobFreq: CLEANUP_REQUEST_TTL, jobName: 'JOB_REQUEST_BG_PROCESSING_CLEANUP_ISSN', jobCategory: 'publications', jobSubCat: 'issn'}
 ];
 
 export const MELINDA_JOBS = [
