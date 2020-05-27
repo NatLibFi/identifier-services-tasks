@@ -63,7 +63,7 @@ export const JOB_BACKGROUND_PROCESSING_IN_PROGRESS = 'inProgress';
 export const JOB_BACKGROUND_PROCESSING_PROCESSED = 'processed';
 
 export const REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '30 seconds'});
-export const CLEANUP_REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '300 seconds'});
+export const CLEANUP_REQUEST_TTL = readEnvironmentVariable('REQUEST_TTL', {defaultValue: '30 seconds'});
 
 export const REQUEST_JOBS = [
   {jobFreq: JOB_FREQ_REQUEST_STATE_NEW, jobName: 'JOB_USER_REQUEST_STATE_NEW', jobCategory: 'users', jobState: 'new'},
