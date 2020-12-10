@@ -44,6 +44,7 @@ import {
 const {createLogger, sendEmail, calculateNewISSN} = Utils;
 
 export default function (agenda) {
+
   const logger = createLogger();
 
   const client = createApiClient({
@@ -78,6 +79,7 @@ export default function (agenda) {
       await setBackground(request, type, subtype, 'inProgress');
       if (request.state === 'new') {
         if (type !== 'users') {
+
           await sendEmail({
             Name: `${type} request new`,
             getTemplate,
@@ -100,6 +102,7 @@ export default function (agenda) {
           SMTP_URL,
           API_EMAIL
         });
+
         return setBackground(request, type, subtype, 'processed');
 
       }
@@ -166,14 +169,19 @@ export default function (agenda) {
 
   async function processRequest({client, processCallback, messageCallback, query, type, subtype}) {
     const {requests} = client;
+
     await perform();
     async function perform() {
-      if (type === 'users' || type === 'publishers') {
-        const response = await requests.fetchList({path: `requests/${type}`, query});
-        const result = await response.json();
-        if (result.results) {
-          logger.log('debug', messageCallback(result.results.length));
-          return processCallback(result.results, type, subtype);
+      if (type === 'users' || type === 'publishers') { // eslint-disable-line functional/no-conditional-statement
+        try {
+          const response = await requests.fetchList({path: `requests/${type}`, query});
+          const result = await response.json();
+          if (result.results) {
+            logger.log('debug', messageCallback(result.results.length));
+            return processCallback(result.results, type, subtype);
+          }
+        } catch (err) {
+          logger.log('This is Error', type);
         }
       }
 
@@ -242,8 +250,7 @@ export default function (agenda) {
     const formatRequest = {
       ...filteredDoc,
       request: request.id,
-      email: request.publisherEmail,
-      primaryContact: request.primaryContact.map(item => item.email),
+      email: request.email,
       activity: {
         active: true,
         yearInactivated: 0
@@ -349,16 +356,10 @@ export default function (agenda) {
       if (subtype === 'isbn-ismn') {
         // Remove Publisher from Publication creation request
         const publication = await createPublisher(request);
-        // Create Publisher
-        const range = publication.type === 'music' ? await ranges.read(`ranges/ismn/${request.publisher.range}`) : await ranges.read(`ranges/isbn/${request.publisher.range}`);
-        const resPublication = await publications.fetchList({path: 'publications/isbn-ismn', query: {queries: {associatedRange: request.publisher.range}, offset: null, calculateIdentifier: true}});
-        const publicationList = await resPublication.json();
-        const newIdentifierTitle = calculateIdentifierTitle(publicationList, range);
         const newPublication = publication.isPublic ? {
           ...publication,
-          associatedRange: request.publisher.range,
           metadataReference: {state: 'pending'},
-          identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
+          // Identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
           publicationType: 'isbn-ismn'
         }
           : {
@@ -412,39 +413,6 @@ export default function (agenda) {
       logger.log('info', `Resource for publishers has been created`);
       return {...request, publisher};
     }
-
-    function calculateIdentifierTitle(publicationList, range) {
-      if (publicationList.length === 0) {
-        return range.rangeStart;
-      }
-
-      const slicedTitle = publicationList[0].identifier.id.slice(11, 15); // '0001'
-      const newIdentifierTitle = Number(slicedTitle) + 1;
-      return newIdentifierTitle;
-    }
-
-    function calculateIdentifier({newIdentifierTitle, range, publication}) {
-      if (publication.formatDetails.format === 'electronic' || publication.formatDetails.format === 'printed') {
-        return [
-          {
-            id: calculateIsbnIsmnIdentifier(range, newIdentifierTitle),
-            type: publication.formatDetails.format
-          }
-        ];
-      }
-
-      if (publication.formatDetails.format === 'printed-and-electronic') {
-        const identifier = [
-          newIdentifierTitle,
-          newIdentifierTitle + 1
-        ];
-        const res = identifier.map((item, i) => ({
-          id: calculateIsbnIsmnIdentifier(range, item),
-          type: i === 0 ? 'printed' : 'electronic'
-        }));
-        return res;
-      }
-    }
   }
 
   async function isLastInRange(newPublication, activeRange, update, subtype) {
@@ -495,27 +463,6 @@ export default function (agenda) {
     if (subtype === 'isbnIsmn') {
       return 'newIdentifier';
     }
-  }
-
-  function calculateIsbnIsmnIdentifier(range, title) {
-    const beforeCheckDigit = `${range.prefix}${title}`;
-    const split = beforeCheckDigit.split('');
-    const calculateMultiply = split.map((item, i) => {
-      if (i === 0 || i % 2 === 0) {
-        return Number(item);
-      }
-
-      return Number(item * 3);
-    });
-    const addTotal = calculateMultiply.reduce((acc, val) => acc + val, 0);
-    const remainder = addTotal % 10;
-    const checkDigit = 10 - remainder;
-    const formatIdentifier = `${beforeCheckDigit.slice(0, 3)}-${
-      beforeCheckDigit.slice(3, 6)}-${
-      beforeCheckDigit.slice(6, 8)}-${
-      beforeCheckDigit.slice(8, 12)}-${
-      checkDigit}`;
-    return formatIdentifier;
   }
 
   async function createLinkAndSendEmail(type, request, response) {

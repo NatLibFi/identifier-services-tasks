@@ -43,7 +43,7 @@ const {createLogger, handleInterrupt} = Utils;
 
 export default async function () {
   const Logger = createLogger();
-  const client = new MongoClient(MONGO_URI, {useNewUrlParser: true});
+  const client = new MongoClient(MONGO_URI, {useNewUrlParser: true, useUnifiedTopology: true});
   const Mongo = await client.connect();
   Mongo.on('error', err => {
     Logger.log('error', 'Error stack' in err ? err.stact : err);
