@@ -347,7 +347,7 @@ export default function (agenda) {
     }
 
     if (type === 'publishers') {
-      const result = await publishers.create({path: type, payload: formatPublisher(request)});
+      const result = await publishers.create({path: type, payload: formatPublisher({...request, publisherType: request.publisherType ? request.publisherType : 'P'})});
       logger.log('info', `Resource for ${type} has been created`);
       return {...request, createdResource: result};
     }
@@ -355,7 +355,7 @@ export default function (agenda) {
     if (type === 'publications') {
       if (subtype === 'isbn-ismn') {
         // Remove Publisher from Publication creation request
-        const publication = await createPublisher(request);
+        const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A'}});
         const newPublication = publication.isPublic ? {
           ...publication,
           metadataReference: {state: 'pending'},
