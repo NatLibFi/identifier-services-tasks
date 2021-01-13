@@ -41,7 +41,7 @@ import {
   API_EMAIL
 } from '../config';
 
-const {createLogger, sendEmail, calculateNewISSN} = Utils;
+const {createLogger, sendEmail} = Utils;
 
 export default function (agenda) {
 
@@ -121,11 +121,13 @@ export default function (agenda) {
       if (request.state === 'accepted') {
         try {
           await createResource(request, type, subtype);
+          await setBackground(request, type, subtype, 'processed');
         } catch (error) {
           logger.log('error', `${error}`);
         }
 
         if (type !== 'users') {
+          await setBackground(request, type, subtype, 'processed');
           return sendEmail({
             name: `${type} request accepted`,
             getTemplate,
@@ -333,9 +335,7 @@ export default function (agenda) {
   }
 
   async function create(request, type, subtype) {
-    const rangeQueries = {queries: [{query: {active: true}}], offset: null};
-    const {users, publishers, publications, ranges} = client;
-    const {update} = client.requests;
+    const {users, publishers, publications} = client;
 
     if (type === 'users') {
       await users.create({path: type, payload: formatUsers(request)});
@@ -353,46 +353,20 @@ export default function (agenda) {
     }
 
     if (type === 'publications') {
-      if (subtype === 'isbn-ismn') {
-        // Remove Publisher from Publication creation request
-        const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A'}});
-        const newPublication = publication.isPublic ? {
+      const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A'}});
+      const newPublication = publication.isPublic ? {
+        ...publication,
+        metadataReference: {state: 'pending'},
+        publicationType: `${subtype}`
+      }
+        : {
           ...publication,
           metadataReference: {state: 'pending'},
-          // Identifier: calculateIdentifier({newIdentifierTitle, range, publication}),
-          publicationType: 'isbn-ismn'
-        }
-          : {
-            ...publication,
-            metadataReference: {state: 'pending'},
-            publicationType: 'isbn-ismn'
-          };
-        const createdId = await publications.create({path: `${type}/isbn-ismn`, payload: formatPublication(newPublication)});
-        logger.log('info', `Resource for ${type} isbn-ismn has been created`);
-        return {...request, createdResource: createdId};
-      }
-
-      if (subtype === 'issn') {
-        // Fetch ranges
-        const response = await ranges.fetchList({path: 'ranges/issn', query: rangeQueries});
-        const identifierLists = await response.json();
-        if (identifierLists.results.length === 0) {
-          return logger.log('info', 'No Active Ranges Found');
-        }
-        const {results} = identifierLists;
-        const [activeRange] = results;
-        const resPublication = await publications.fetchList({path: `publications/${subtype}`, query: {queries: {associatedRange: activeRange.id}, offset: null, calculateIdentifier: true}});
-        const publicationList = await resPublication.json();
-        const payload = await createPublisher(request);
-        const [resultPublication] = publicationList;
-        const newPublication = calculateNewIdentifier({prevIdentifier: resultPublication && resultPublication.identifier, subtype, format: payload.formatDetails.format, activeRange});
-        await publications.create({path: `${type}/${subtype}`, payload: formatPublication({...payload, associatedRange: activeRange.id, identifier: newPublication, publicationType: subtype})});
-        logger.log('info', `Resource for ${type}${subtype} has been created`);
-        isLastInRange(newPublication, activeRange, update, subtype);
-
-        return request;
-
-      }
+          publicationType: `${subtype}`
+        };
+      const createdId = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(newPublication)});
+      logger.log('info', `Resource for ${type} ${subtype} has been created`);
+      return {...request, createdResource: createdId};
     }
     // Create and check publisher exist
     async function createPublisher(request) {
@@ -415,35 +389,6 @@ export default function (agenda) {
     }
   }
 
-  async function isLastInRange(newPublication, activeRange, update, subtype) {
-    if (newPublication.slice(5, 8) === activeRange.rangeEnd) {
-      const newPayload = {...activeRange, active: false};
-      const filteredDoc = filterDoc(newPayload);
-      const res = await update({path: `ranges/${subtype}/${activeRange.id}`, filteredDoc});
-      if (res === 200) {
-        return sendEmailToAdministrator();
-      }
-    }
-    function filterDoc(doc) {
-      return Object.entries(doc)
-        .filter(([key]) => key === 'id' === false)
-        .reduce((acc, [
-          key,
-          value
-        ]) => ({...acc, [key]: value}), {});
-    }
-  }
-
-  async function sendEmailToAdministrator() {
-    const result = await sendEmail({
-      name: 'reply to a creator', // Need to create its own template later *****************
-      getTemplate,
-      SMTP_URL,
-      API_EMAIL
-    });
-    return result;
-  }
-
   async function sendEmailToCreator(type, request, response) {
     const result = await sendEmail({
       name: 'reply to a creator',
@@ -453,16 +398,6 @@ export default function (agenda) {
       API_EMAIL: await getUserEmail(request.creator)
     });
     return result;
-  }
-
-  function calculateNewIdentifier({prevIdentifier, subtype, format, activeRange}) {
-    if (subtype === 'issn') {
-      return calculateNewISSN({prevIdentifier, format, activeRange});
-    }
-
-    if (subtype === 'isbnIsmn') {
-      return 'newIdentifier';
-    }
   }
 
   async function createLinkAndSendEmail(type, request, response) {
