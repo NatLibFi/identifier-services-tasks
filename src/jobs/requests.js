@@ -1,58 +1,51 @@
+/* eslint-disable max-lines */
+/* eslint-disable max-statements */
 /**
-*
-* @licstart  The following is the entire license notice for the JavaScript code in this file.
-*
-* Tasks microservice of Identifier Services
-*
-* Copyright (C) 2019 University Of Helsinki (The National Library Of Finland)
-*
-* This file is part of identifier-services-tasks
-*
-* identifier-services-tasks program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Affero General Public License as
-* published by the Free Software Foundation, either version 3 of the
-* License, or (at your option) any later version.
-*
-* identifier-services-tasks is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Affero General Public License for more details.
-*
-* You should have received a copy of the GNU Affero General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*
-* @licend  The above is the entire license notice
-* for the JavaScript code in this file.
-*
-*/
+ *
+ * @licstart  The following is the entire license notice for the JavaScript code in this file.
+ *
+ * Tasks microservice of Identifier Services
+ *
+ * Copyright (C) 2019 University Of Helsinki (The National Library Of Finland)
+ *
+ * This file is part of identifier-services-tasks
+ *
+ * identifier-services-tasks program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * identifier-services-tasks is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @licend  The above is the entire license notice
+ * for the JavaScript code in this file.
+ *
+ */
 
 import {Utils, createApiClient} from '@natlibfi/identifier-services-commons';
 import fs from 'fs';
 import {JWE, JWK, JWT} from 'jose';
-import {
-  UI_URL,
-  API_URL,
-  SMTP_URL,
-  REQUEST_JOBS,
-  API_CLIENT_USER_AGENT,
-  API_PASSWORD,
-  API_USERNAME,
-  PRIVATE_KEY_URL,
-  API_EMAIL
-} from '../config';
+import {UI_URL, API_URL, SMTP_URL, REQUEST_JOBS, API_CLIENT_USER_AGENT, API_PASSWORD, API_USERNAME, PRIVATE_KEY_URL, API_EMAIL} from '../config';
 
 const {createLogger, sendEmail} = Utils;
 
 export default function (agenda) {
-
   const logger = createLogger();
 
   const client = createApiClient({
-    url: API_URL, username: API_USERNAME, password: API_PASSWORD,
+    url: API_URL,
+    username: API_USERNAME,
+    password: API_PASSWORD,
     userAgent: API_CLIENT_USER_AGENT
   });
 
-  REQUEST_JOBS.forEach(job => {
+  REQUEST_JOBS.forEach((job) => {
     agenda.define(job.jobName, {concurrency: 1}, async (_, done) => {
       await request(done, job.jobState, job.jobCategory, job.jobSubCat);
     });
@@ -67,19 +60,21 @@ export default function (agenda) {
 
     async function getRequests() {
       await processRequest({
-        client, processCallback,
+        client,
+        processCallback,
         query: {queries: [{query: {state, backgroundProcessingState: 'pending'}}], offset: null},
-        messageCallback: count => `${count} requests for ${type} ${subtype} are pending`, type, subtype
+        messageCallback: (count) => `${count} requests for ${type} ${subtype} are pending`,
+        type,
+        subtype
       });
     }
   }
 
   async function processCallback(requests, type, subtype) {
-    await Promise.all(requests.map(async request => {
+    await Promise.all(requests.map(async (request) => {
       await setBackground(request, type, subtype, 'inProgress');
       if (request.state === 'new') {
         if (type !== 'users') {
-
           await sendEmail({
             Name: `${type} request new`,
             getTemplate,
@@ -104,7 +99,6 @@ export default function (agenda) {
         });
 
         return setBackground(request, type, subtype, 'processed');
-
       }
 
       if (request.state === 'rejected') {
@@ -145,7 +139,6 @@ export default function (agenda) {
       if (type === 'users') {
         await requests.update({path: `requests/${type}/${request.id}`, payload: {...filteredDoc, initialRequest: true}});
         return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-
       }
 
       if (type === 'publishers') {
@@ -203,7 +196,7 @@ export default function (agenda) {
     const result = await create(request, type, subtype);
     const filteredDoc = filterDoc(result);
     const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
-
+    // TO DO SET BACKGROUND TASK TO INPROGRESS IF JOBS FAILS
     if (type === 'users') {
       await update({path: `requests/${type}/${request.id}`, payload});
       return logger.log('info', `${type} requests updated for ${request.id} `);
@@ -354,11 +347,12 @@ export default function (agenda) {
 
     if (type === 'publications') {
       const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A'}});
-      const newPublication = publication.isPublic ? {
-        ...publication,
-        metadataReference: {state: 'pending'},
-        publicationType: `${subtype}`
-      }
+      const newPublication = publication.isPublic
+        ? {
+          ...publication,
+          metadataReference: {state: 'pending'},
+          publicationType: `${subtype}`
+        }
         : {
           ...publication,
           metadataReference: {state: 'pending'},
@@ -383,7 +377,10 @@ export default function (agenda) {
         return {...request, publisher: resultPublisher.results[0].id};
       }
 
-      const publisher = await publishers.create({path: 'publishers', payload: formatPublisher({...request.publisher, id: request.id, requestPublicationType: request.type === 'dissertation' ? 'dissertation' : subtype})});
+      const publisher = await publishers.create({
+        path: 'publishers',
+        payload: formatPublisher({...request.publisher, id: request.id, requestPublicationType: request.type === 'dissertation' ? 'dissertation' : subtype})
+      });
       logger.log('info', `Resource for publishers has been created`);
       return {...request, publisher};
     }
