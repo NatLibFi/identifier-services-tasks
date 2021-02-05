@@ -105,7 +105,7 @@ export default function (agenda) {
           profile: MELINDA_RECORD_IMPORT_PROFILE
         });
         logger.log('info', `Created new blob ${blobId}`);
-        await setBackground(request, JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type);
+        await setBackground({request, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type, status: 'PENDING_TRANSFORMATION'});
       }));
       return;
     }
@@ -117,14 +117,18 @@ export default function (agenda) {
         const response = await melindaClient.getBlobMetadata({id: blobId});
         if (response.state === 'PROCESSED') {
           return response.processingInfo.importResults[0].status === 'DUPLICATE'
-            ? setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, response.processingInfo.importResults[0].metadata.matches[0], type)
-            : setBackground(request, JOB_BACKGROUND_PROCESSING_PROCESSED, response.processingInfo.importResults[0].metadata.id, type);
+            ? setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId: response.processingInfo.importResults[0].metadata.matches[0], type, status: response.state})
+            : setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId: response.processingInfo.importResults[0].metadata.id, type});
+        } else if (response.state === 'TRANSFORMATION_FAILED') {
+          return setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId, type, status: response.state});
         }
       }));
     }
 
-    async function setBackground(request, state, blobId, type) {
-      const payload = {...request, metadataReference: {state, id: blobId && blobId}};
+    async function setBackground({request, state, blobId, type, status}) {
+      const payload = blobId
+        ? {...request, metadataReference: {state, id: blobId, status}}
+        : {...request, metadataReference: {state, id: blobId, status}};
       const {publications} = client;
       await publications.update({path: `publications/${type}/${request.id}`, payload});
       logger.log('info', `Background processing State changed to ${state} for${request.id}`);
