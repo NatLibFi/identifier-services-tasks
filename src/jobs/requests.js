@@ -73,92 +73,52 @@ export default function (agenda) {
   async function processCallback(requests, type, subtype) {
     await Promise.all(requests.map(async (request) => {
       await setBackground(request, type, subtype, 'inProgress');
-      if (request.state === 'new') {
-        if (type !== 'users') {
+      if (request.state === 'new' || request.state === 'rejected') {
+        if (type === 'users') {
           await sendEmail({
-            Name: `${type} request new`,
-            getTemplate,
-            SMTP_URL,
-            API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
-          });
-          await sendEmail({
-            Name: `${type} request new`,
+            name: `${type} request new`,
             getTemplate,
             SMTP_URL,
             API_EMAIL
           });
-
           return setBackground(request, type, subtype, 'processed');
         }
-
-        await sendEmail({
-          name: `${type} request new`,
-          getTemplate,
-          SMTP_URL,
-          API_EMAIL
-        });
-
-        return setBackground(request, type, subtype, 'processed');
-      }
-
-      if (request.state === 'rejected') {
-        await sendEmail({
-          name: `${type} request rejected`,
-          args: request.rejectionReason,
-          getTemplate,
-          SMTP_URL,
-          API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
-        });
         return setBackground(request, type, subtype, 'processed');
       }
 
       if (request.state === 'accepted') {
-        try {
-          await createResource(request, type, subtype);
-          await setBackground(request, type, subtype, 'processed');
-        } catch (error) {
-          logger.log('error', `${error}`);
-        }
-
-        if (type !== 'users') {
-          await setBackground(request, type, subtype, 'processed');
-          return sendEmail({
-            name: `${type} request accepted`,
-            getTemplate,
-            SMTP_URL,
-            API_EMAIL: isEmail(request.creator) ? request.creator : await getUserEmail(request.creator)
-          });
-        }
+        return createResource(request, type, subtype);
       }
     }));
 
-    async function setBackground(request, type, subtype, state) {
-      const newPayload = {...request, backgroundProcessingState: state};
-      const filteredDoc = filterDoc(newPayload);
-      const {requests} = client;
-      if (type === 'users') {
-        await requests.update({path: `requests/${type}/${request.id}`, payload: {...filteredDoc, initialRequest: true}});
-        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-      }
+  }
 
-      if (type === 'publishers') {
-        await requests.update({path: `requests/${type}/${request.id}`, payload: filteredDoc});
-        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-      }
+  async function setBackground(request, type, subtype, state) {
+    const newPayload = {...request, backgroundProcessingState: state};
+    const filteredDoc = filterDoc(newPayload);
+    const {requests} = client;
+    if (type === 'users') {
+      await requests.update({path: `requests/${type}/${request.id}`, payload: {...filteredDoc, initialRequest: true}});
+      return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+    }
 
-      if (type === 'publications') {
-        await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
-        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
-      }
+    if (type === 'publishers') {
+      await requests.update({path: `requests/${type}/${request.id}`, payload: filteredDoc});
+      return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+    }
 
-      function filterDoc(doc) {
-        return Object.entries(doc)
-          .filter(([key]) => key === 'id' === false)
-          .reduce((acc, [
-            key,
-            value
-          ]) => ({...acc, [key]: value}), {});
-      }
+    if (type === 'publications') {
+      await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
+      return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+    }
+
+    function filterDoc(doc) {
+      return Object.entries(doc)
+        .filter(([key]) => key === 'id' === false)
+        .reduce((acc, [
+          key,
+          value
+        ]) => ({...acc, [key]: value}), {});
     }
   }
 
@@ -192,25 +152,25 @@ export default function (agenda) {
   }
 
   async function createResource(request, type, subtype) {
-    const {update} = client.requests;
     const result = await create(request, type, subtype);
     const filteredDoc = filterDoc(result);
     const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
     // TO DO SET BACKGROUND TASK TO INPROGRESS IF JOBS FAILS
     if (type === 'users') {
-      await update({path: `requests/${type}/${request.id}`, payload});
+      await setBackground(payload, type, subtype, 'processed');
       return logger.log('info', `${type} requests updated for ${request.id} `);
     }
 
     if (type === 'publishers') {
-      await update({path: `requests/${type}/${request.id}`, payload});
+      await setBackground(payload, type, subtype, 'processed');
       return logger.log('info', `${type} requests updated for ${request.id} `);
     }
 
     if (type === 'publications') {
-      await update({path: `requests/${type}/${subtype}/${request.id}`, payload});
+      await setBackground(payload, type, subtype, 'processed');
       return logger.log('info', `${type}${subtype} requests updated for ${request.id} `);
     }
+
     function filterDoc(doc) {
       return Object.entries(doc)
         .filter(([key]) => filter(key))
@@ -223,8 +183,7 @@ export default function (agenda) {
       const allowedKeys = [
         'isbnRange',
         'ismnRange',
-        'rejectionReason',
-        'id'
+        'rejectionReason'
       ];
       return allowedKeys.includes(key) === false;
     }
@@ -439,8 +398,4 @@ export default function (agenda) {
     return readResponse.emails[0].value;
   }
 
-  function isEmail(text) {
-    const regex = /(?<id>[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/giu;
-    return regex.test(text);
-  }
 }
