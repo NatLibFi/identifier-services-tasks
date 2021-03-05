@@ -136,6 +136,7 @@ export default function (agenda) {
             return processCallback(result.results, type, subtype);
           }
         } catch (err) {
+          console.log(err);
           logger.log('This is Error', type);
         }
       }
