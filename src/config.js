@@ -55,8 +55,8 @@ export const MELINDA_RECORD_IMPORT_PASSWORD = readEnvironmentVariable('MELINDA_R
 const JOB_FREQ_REQUEST_STATE_NEW = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_NEW', {defaultValue: '10 seconds'});
 const JOB_FREQ_REQUEST_STATE_REJECTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_REJECTED', {defaultValue: '10 seconds'});
 const JOB_FREQ_REQUEST_STATE_ACCEPTED = readEnvironmentVariable('JOB_FREQ_REQUEST_STATE_ACCEPTED', {defaultValue: '10 seconds'});
-const JOB_FREQ_PENDING = readEnvironmentVariable('JOB_FREQ_PENDING', {defaultValue: '10 seconds'});
-const JOB_FREQ_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_IN_PROGRESS', {defaultValue: '10 seconds'});
+const JOB_FREQ_PENDING = readEnvironmentVariable('JOB_FREQ_PENDING', {defaultValue: '30 seconds'});
+const JOB_FREQ_IN_PROGRESS = readEnvironmentVariable('JOB_FREQ_IN_PROGRESS', {defaultValue: '30 seconds'});
 
 export const JOB_BACKGROUND_PROCESSING_PENDING = 'pending';
 export const JOB_BACKGROUND_PROCESSING_IN_PROGRESS = 'inProgress';

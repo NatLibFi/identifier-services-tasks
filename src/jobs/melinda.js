@@ -1,3 +1,5 @@
+/* eslint-disable no-nested-ternary */
+/* eslint-disable max-statements */
 /**
 *
 * @licstart  The following is the entire license notice for the JavaScript code in this file.
@@ -95,43 +97,136 @@ export default function (agenda) {
     }
   }
 
-  async function processCallback(requests, state, type) {
+  function processCallback(requests, state, type) {
     if (state === JOB_BACKGROUND_PROCESSING_PENDING) {
-      await Promise.all(requests.map(async request => {
-        // Create a new blob in Melinda's record import system
+      // eslint-disable-next-line array-callback-return
+      requests.reduce(async (acc, request) => {
+        if (request.publicationType === 'issn') {
+          request.formatDetails.forEach(item => {
+            const newRequest = {...request, formatDetails: item.format};
+            acc.push(newRequest); // eslint-disable-line functional/immutable-data
+            return acc;
+          });
+          return resolvePendingPromise(acc);
+        }
+
+        if (request.publicationType === 'isbn-ismn') {
+          if (request.formatDetails.format === 'printed-and-electronic') { // eslint-disable-line functional/no-conditional-statement
+            const publisherDetails = await fetchPublisherDetails(request.publisher);
+            const withFileFormat = await resolvePendingPromise([{...request, publisher: publisherDetails, formatDetails: {fileFormat: request.formatDetails.fileFormat, multiFormat: true}}], 'fileFormat');
+            const withPrintFormat = await resolvePendingPromise([{...request, publisher: publisherDetails, formatDetails: {printFormat: request.formatDetails.printFormat, edition: request.formatDetails.edition, multiFormat: true}}], 'printFormat');
+            return setBackground({
+              requests,
+              requestId: request.id,
+              state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
+              newRequest: {
+                ...request,
+                formatDetails: {...request.formatDetails, fileFormat: withFileFormat[0].formatDetails.fileFormat, printFormat: withPrintFormat[0].formatDetails.printFormat}
+              },
+              metadataReference: withPrintFormat[0].metadataReference,
+              type,
+              status: 'PENDING_TRANSFORMATION'
+            });
+          }
+
+          if (request.formatDetails.format === 'printed') { // eslint-disable-line functional/no-conditional-statement
+            acc.push({...request, formatDetails: {printFormat: request.formatDetails.printFormat}}); // eslint-disable-line functional/immutable-data
+            return resolvePendingPromise(acc);
+          }
+
+          if (request.formatDetails.format === 'electronic') { // eslint-disable-line functional/no-conditional-statement
+            acc.push({...request, formatDetails: {fileFormat: request.formatDetails.fileFormat}}); // eslint-disable-line functional/immutable-data
+            return resolvePendingPromise(acc);
+          }
+
+        }
+      }, []);
+
+      return;
+    }
+
+    function fetchPublisherDetails(id) {
+      return client.publishers.read(`publishers/${id}`);
+    }
+
+    function resolvePendingPromise(newRequests, format) {
+      return Promise.all(newRequests.map(async request => {
+      // Create a new blob in Melinda's record import system
         const blobId = await melindaClient.createBlob({
-          blob: JSON.stringify(requests),
+          blob: JSON.stringify(newRequests),
           type: 'application/json',
           profile: MELINDA_RECORD_IMPORT_PROFILE
         });
         logger.log('info', `Created new blob ${blobId}`);
-        await setBackground({request, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS, blobId, type, status: 'PENDING_TRANSFORMATION'});
+        return format
+          ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS, format, blobId, status: 'PENDING_TRANSFORMATION'})
+          : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS, format: request.publicationType === 'isbn-ismn' ? Object.keys(request.formatDetails)[0] : request.formatDetails.format, blobId, type, status: 'PENDING_TRANSFORMATION'});
       }));
-      return;
+    }
+
+    function resolveFormatDetails({requests, requestId, state, format, blobId, status}) {
+      const request = requests.find(item => item.id === requestId);
+      return {...request, formatDetails: {[format]: {...request.formatDetails[format], metadata: {id: blobId}}}, metadataReference: {...request.metadataReference, state, status}};
     }
 
     if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
       return Promise.all(requests.map(async request => {
-        // ==> Retrieve the blob metadata from Melinda's record import system
-        const blobId = request.metadataReference.id;
-        const response = await melindaClient.getBlobMetadata({id: blobId});
-        if (response.state === 'PROCESSED') {
-          return response.processingInfo.importResults[0].status === 'DUPLICATE'
-            ? setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId: response.processingInfo.importResults[0].metadata.matches[0], type, status: response.state})
-            : setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId: response.processingInfo.importResults[0].metadata.id, type});
-        } else if (response.state === 'TRANSFORMATION_FAILED') {
-          return setBackground({request, state: JOB_BACKGROUND_PROCESSING_PROCESSED, blobId, type, status: response.state});
+        if (request.publicationType === 'isbn-ismn' && request.formatDetails.format === 'printed-and-electronic') {
+          const fileFormatBlodId = request.formatDetails.fileFormat.id;
+          const fileFormatResponse = await retriveMetadataAndUpdate(fileFormatBlodId, 'fileFormat');
+          const printFormatResponse = await retriveMetadataAndUpdate(fileFormatBlodId, 'printFormat');
+          const newRequest = {
+            ...request,
+            formatDetails: {
+              ...request.formatDetails,
+              fileFormat: fileFormatResponse.formatDetails.fileFormat,
+              printFormat: printFormatResponse.formatDetails.fileFormat
+            },
+            metadataReference: printFormatResponse.metadataReference.state
+          };
+          return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type, status: newRequest.metadataReference.state});
         }
+
+        const blobId = request.metadataReference.id;
+        return retriveMetadataAndUpdate(blobId);
       }));
     }
 
-    async function setBackground({request, state, blobId, type, status}) {
-      const payload = blobId
-        ? {...request, metadataReference: {state, id: blobId, status}}
-        : {...request, metadataReference: {state, id: blobId, status}};
-      const {publications} = client;
-      await publications.update({path: `publications/${type}/${request.id}`, payload});
-      logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+    async function retriveMetadataAndUpdate(blobId, format) {
+      const response = await melindaClient.getBlobMetadata({id: blobId});
+      if (response.state === 'PROCESSED') {
+        return response.processingInfo.importResults[0].status === 'DUPLICATE'
+          ? format
+            ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId: response.processingInfo.importResults[0].metadata.matches[0], status: response.state})
+            : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format, blobId: response.processingInfo.importResults[0].metadata.matches[0], type, status: response.state})
+          : format
+            ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId: response.processingInfo.importResults[0].metadata.id})
+            : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format, blobId: response.processingInfo.importResults[0].metadata.id, type});
+      } else if (response.state === 'TRANSFORMATION_FAILED') {
+        return format
+          ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId, status: response.state})
+          : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format, blobId, type, status: response.state});
+      }
+    }
+
+    async function setBackground({requests, requestId, state, format, newRequest, blobId, type, status}) {
+      const request = requests.find(item => item.id === requestId);
+      if (request.publicationType === 'issn') { // eslint-disable-line functional/no-conditional-statement
+        const newFormatDetails = request.formatDetails.map(f => f.format === format ? {...f, metadata: {id: blobId}} : f);
+        const payload = {...request, formatDetails: newFormatDetails, metadataReference: {...request.metadataReference, state, status}};
+        const {publications} = client;
+        await publications.update({path: `publications/${type}/${request.id}`, payload});
+        logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+      } else { // eslint-disable-line functional/no-conditional-statement
+        const payload = format === 'printFormat'
+          ? {...request, formatDetails: {...request.formatDetails, printFormat: {...request.formatDetails.printFormat, metadata: {id: blobId}}}, metadataReference: {...request.metadataReference, state, status}}
+          : format === 'fileFormat'
+            ? {...request, formatDetails: {...request.formatDetails, fileFormat: {...request.formatDetails.fileFormat, metadata: {id: blobId}}}, metadataReference: {...request.metadataReference, state, status}}
+            : {...newRequest, metadataReference: {...newRequest.metadataReference, state, status}};
+        const {publications} = client;
+        await publications.update({path: `publications/${type}/${request.id}`, payload});
+        logger.log('info', `Background processing State changed to ${state} for${request.id}`);
+      }
     }
   }
 }

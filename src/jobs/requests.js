@@ -137,7 +137,6 @@ export default function (agenda) {
           }
         } catch (err) {
           // eslint-disable-next-line no-console
-          console.log(err);
           logger.log('This is Error', type);
         }
       }
