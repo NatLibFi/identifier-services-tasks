@@ -310,12 +310,10 @@ export default function (agenda) {
       const newPublication = publication.isPublic
         ? {
           ...publication,
-          metadataReference: {state: 'pending'},
           publicationType: `${subtype}`
         }
         : {
           ...publication,
-          metadataReference: {state: 'pending'},
           publicationType: `${subtype}`
         };
       const createdId = await publications.create({path: `${type}/${subtype}`, payload: formatPublication(newPublication)});

@@ -101,7 +101,7 @@ export default function (agenda) {
     if (state === JOB_BACKGROUND_PROCESSING_PENDING) {
       // eslint-disable-next-line array-callback-return
       requests.reduce(async (acc, request) => {
-        if (request.publicationType === 'issn') {
+        if (request.publicationType === 'issn' && (request.identifier && request.identifier.length > 0)) {
           request.formatDetails.forEach(item => {
             const newRequest = {...request, formatDetails: item.format};
             acc.push(newRequest); // eslint-disable-line functional/immutable-data
@@ -110,7 +110,7 @@ export default function (agenda) {
           return resolvePendingPromise(acc);
         }
 
-        if (request.publicationType === 'isbn-ismn') {
+        if (request.publicationType === 'isbn-ismn' && (request.identifier && request.identifier.length > 0)) {
           if (request.formatDetails.format === 'printed-and-electronic') { // eslint-disable-line functional/no-conditional-statement
             const publisherDetails = await fetchPublisherDetails(request.publisher);
             const withFileFormat = await resolvePendingPromise([{...request, publisher: publisherDetails, formatDetails: {fileFormat: request.formatDetails.fileFormat, multiFormat: true}}], 'fileFormat');
