@@ -306,7 +306,7 @@ export default function (agenda) {
     }
 
     if (type === 'publications') {
-      const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A', selfPublisher: true}});
+      const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A', selfPublisher: true, publicationPublisher: true}});
       const newPublication = publication.isPublic
         ? {
           ...publication,
