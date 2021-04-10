@@ -78,7 +78,7 @@ export default function (agenda) {
     async function getRequests() {
       await processRequest({
         client, processCallback,
-        query: {queries: [{query: {metadataReference: {$elemMatch: {status: 'new', state}}}}], offset: null},
+        query: {queries: [{query: {metadataReference: {$elemMatch: {state}}}}], offset: null},
         messageCallback: count => `${count} requests for melinda are ${state}`,
         state,
         type
@@ -101,7 +101,6 @@ export default function (agenda) {
 
   function processCallback(requests, state, type) {
     if (state === JOB_BACKGROUND_PROCESSING_PENDING) { // eslint-disable-line functional/no-conditional-statement
-      // eslint-disable-next-line array-callback-return
       requests.reduce(async (acc, req) => {
         const {_id, ...rest} = req;
         const request = {...rest, id: _id};
@@ -115,64 +114,89 @@ export default function (agenda) {
         }
 
         if (request.publicationType === 'isbn-ismn' && (request.identifier && request.identifier.length > 0)) {
-          if (request.formatDetails.format === 'printed-and-electronic') { // eslint-disable-line functional/no-conditional-statement
-            const publisherDetails = await fetchPublisherDetails(request.publisher);
+          if (request.formatDetails.format === 'printed-and-electronic') {
+            const withPrintFormat = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat'});
+            const printFormatafterBlobRegister = await handlePrintedFormat(withPrintFormat[0]);
+            const withFileFormat = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat'});
+            const fileFormatafterBlobRegister = await handleFileFormat(withFileFormat[0]);
             return setBackground({
               requests,
               requestId: request.id,
               state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
               newRequest: {
                 ...request,
-                formatDetails: {...request.formatDetails, fileFormat: withFileFormat[0].formatDetails.fileFormat, printFormat: withPrintFormat[0].formatDetails.printFormat}
+                metadataReference: [
+                  ...printFormatafterBlobRegister.metadataReference,
+                  ...fileFormatafterBlobRegister.metadataReference
+                ]
               },
-              metadataReference: withPrintFormat[0].metadataReference,
               type,
               status: 'PENDING_TRANSFORMATION'
             });
           }
 
-          if (request.formatDetails.format === 'printed') { // eslint-disable-line functional/no-conditional-statement
-            // eslint-disable-next-line no-unused-vars
-            const newRequest = {...request, formatDetails: {printFormat: request.formatDetails.printFormat}};
-            const paperback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'paperback'});
-            const hardback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'hardback'});
-            const spiralbinding = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'spiralbinding'});
-            const otherPrints = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'otherPrints'});
-            const metadataArray = [];
-            paperback[0] !== undefined && metadataArray.push(paperback[0].metadataReference[0]);
-            hardback[0] !== undefined && metadataArray.push(hardback[0].metadataReference[0]);
-            spiralbinding[0] !== undefined && metadataArray.push(spiralbinding[0].metadataReference[0]);
-            otherPrints[0] !== undefined && metadataArray.push(otherPrints[0].metadataReference[0]);
-            const combineAll = {
-              ...request,
-              metadataReference: metadataArray
-            };
+          if (request.formatDetails.format === 'printed') {
             return setBackground({
               requests,
               requestId: request.id,
               state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-              newRequest: combineAll,
+              newRequest: await handlePrintedFormat(request),
               type,
               status: 'PENDING_TRANSFORMATION'
             });
           }
 
-          if (request.formatDetails.format === 'electronic') { // eslint-disable-line functional/no-conditional-statement
-            acc.push({...request, formatDetails: {fileFormat: request.formatDetails.fileFormat}}); // eslint-disable-line functional/immutable-data
-            return resolvePendingPromise({newRequests: acc, formatName: 'fileFormat'});
+          if (request.formatDetails.format === 'electronic') {
+            return setBackground({
+              requests,
+              requestId: request.id,
+              state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
+              newRequest: await handleFileFormat(request),
+              type,
+              status: 'PENDING_TRANSFORMATION'
+            });
           }
 
         }
       }, []);
     }
 
-    function getExpandedFormat(req, format) {
-      return req.formatDetails[format].format.map(item => ({...req, formatDetails: {...req.formatDetails, [format]: {...req.formatDetails[format], format: item}}}));
+    async function handlePrintedFormat(request) {
+      const paperback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'paperback'});
+      const hardback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'hardback'});
+      const spiralbinding = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'spiralbinding'});
+      const otherPrints = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'otherPrints'});
+      const metadataArray = [];
+      paperback[0] !== undefined && metadataArray.push(paperback[0].metadataReference[0]);
+      hardback[0] !== undefined && metadataArray.push(hardback[0].metadataReference[0]);
+      spiralbinding[0] !== undefined && metadataArray.push(spiralbinding[0].metadataReference[0]);
+      otherPrints[0] !== undefined && metadataArray.push(otherPrints[0].metadataReference[0]);
+      const combineAll = {
+        ...request,
+        metadataReference: metadataArray
+      };
+      return combineAll;
     }
 
-    function fetchPublisherDetails(id) {
-      return client.publishers.read(`publishers/${id}`);
+    async function handleFileFormat(request) {
+      const pdf = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'pdf'});
+      const epub = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'epub'});
+      const mp3 = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'mp3'});
+      const cd = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'cd'});
+      const otherElectroincs = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'otherElectroincs'});
+      const metadataArray = [];
+      pdf[0] !== undefined && metadataArray.push(pdf[0].metadataReference[0]);
+      epub[0] !== undefined && metadataArray.push(epub[0].metadataReference[0]);
+      mp3[0] !== undefined && metadataArray.push(mp3[0].metadataReference[0]);
+      cd[0] !== undefined && metadataArray.push(cd[0].metadataReference[0]);
+      otherElectroincs[0] !== undefined && metadataArray.push(otherElectroincs[0].metadataReference[0]);
+      const combineAll = {
+        ...request,
+        metadataReference: metadataArray
+      };
+      return combineAll;
     }
+
 
     function resolvePendingPromise({newRequests, format, formatName, subFormat}) {
       return Promise.all(newRequests.map(async request => {
@@ -184,21 +208,11 @@ export default function (agenda) {
             profile: MELINDA_RECORD_IMPORT_PROFILE
           });
           logger.log('info', `Created new blob ${blobId}`);
-          if (format) {
-            if (subFormat) {
-              return resolveSubFormatDetails({request,
-                formatName,
-                subFormat,
-                state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-                blobId,
-                status: 'PENDING_TRANSFORMATION'});
-            }
-
-            return resolveFormatDetails({requests,
-              requestId: request.id,
+          if (format && subFormat) {
+            return resolveSubFormatDetails({request,
+              formatName,
+              subFormat,
               state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-              format,
-              subFormat: request.publicationType === 'isbn-ismn' ? request.formatDetails[formatName].format : '',
               blobId,
               status: 'PENDING_TRANSFORMATION'});
           }
@@ -211,12 +225,17 @@ export default function (agenda) {
             status: 'PENDING_TRANSFORMATION'
           });
         }
+        if (format && !subFormat) {
+          return resolveFormatDetails({requests, requestId: request.id, formatName});
+        }
       }));
     }
 
-    function resolveFormatDetails({requests, requestId, format}) {
-      const request = requests.find(item => item._id === requestId);
-      return {...request, formatDetails: {[format]: {...request.formatDetails[format]}}};
+    function resolveFormatDetails({requests, requestId, formatName}) {
+      const req = requests.find(item => item._id === requestId);
+      const {_id, ...rest} = req;
+      const request = {...rest, id: _id};
+      return {...request, formatDetails: {[formatName]: {...request.formatDetails[formatName]}}};
     }
 
     function resolveSubFormatDetails({request, formatName, subFormat, state, blobId, status}) {
@@ -280,20 +299,19 @@ export default function (agenda) {
 
     async function setBackground({requests, requestId, state, format, newRequest, type}) {
       const req = requests.find(item => item._id === requestId);
-      const {_id, ...request} = req; // eslint-disable-line no-unused-vars
-      if (request.publicationType === 'issn') { // eslint-disable-line functional/no-conditional-statement
+      const {_id, ...request} = req;
+      if (request.publicationType === 'issn') {
         const payload = {...request};
         const {publications} = client;
         await publications.update({path: `publications/${type}/${_id}`, payload});
-        logger.log('info', `Background processing State changed to ${state} for${_id}`);
-      } else { // eslint-disable-line functional/no-conditional-statement
-        const payload = format === 'printFormat' && format === 'fileFormat'
-          ? {...request}
-          : {...newRequest};
-        const {publications} = client;
-        await publications.update({path: `publications/${type}/${_id}`, payload});
-        logger.log('info', `Background processing State changed to ${state} for${_id}`);
+        return logger.log('info', `Background processing State changed to ${state} for${_id}`);
       }
+      const payload = format === 'printFormat' && format === 'fileFormat'
+        ? {...request}
+        : {...newRequest};
+      const {publications} = client;
+      await publications.update({path: `publications/${type}/${_id}`, payload});
+      return logger.log('info', `Background processing State changed to ${state} for${_id}`);
     }
   }
 
