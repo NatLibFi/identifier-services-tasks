@@ -1,6 +1,6 @@
+/* eslint-disable max-lines */
 /* eslint-disable functional/immutable-data */
 /* eslint-disable no-unused-expressions */
-/* eslint-disable no-nested-ternary */
 /* eslint-disable max-statements */
 /**
 *
@@ -183,13 +183,13 @@ export default function (agenda) {
       const epub = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'epub'});
       const mp3 = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'mp3'});
       const cd = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'cd'});
-      const otherElectroincs = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'otherElectroincs'});
+      const otherFile = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'otherFile'});
       const metadataArray = [];
       pdf[0] !== undefined && metadataArray.push(pdf[0].metadataReference[0]);
       epub[0] !== undefined && metadataArray.push(epub[0].metadataReference[0]);
       mp3[0] !== undefined && metadataArray.push(mp3[0].metadataReference[0]);
       cd[0] !== undefined && metadataArray.push(cd[0].metadataReference[0]);
-      otherElectroincs[0] !== undefined && metadataArray.push(otherElectroincs[0].metadataReference[0]);
+      otherFile[0] !== undefined && metadataArray.push(otherFile[0].metadataReference[0]);
       const combineAll = {
         ...request,
         metadataReference: metadataArray
@@ -252,48 +252,97 @@ export default function (agenda) {
       };
     }
 
-    // if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
-    //   return Promise.all(requests.map(async request => {
-    //     if (request.publicationType === 'isbn-ismn' && request.formatDetails.format === 'printed-and-electronic') {
-    //       const fileFormatBlodId = request.formatDetails.fileFormat.id;
-    //       const fileFormatResponse = await retriveMetadataAndUpdate(fileFormatBlodId, 'fileFormat');
-    //       const printFormatResponse = await retriveMetadataAndUpdate(fileFormatBlodId, 'printFormat');
-    //       const newRequest = {
-    //         ...request,
-    //         formatDetails: {
-    //           ...request.formatDetails,
-    //           fileFormat: fileFormatResponse.formatDetails.fileFormat,
-    //           printFormat: printFormatResponse.formatDetails.fileFormat
-    //         },
-    //         metadataReference: printFormatResponse.metadataReference.state
-    //       };
-    //       return setBackground({requests, requestId: request._id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type, status: newRequest.metadataReference.state});
-    //     }
+    if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
+      return Promise.all(requests.map(async req => {
+        const {_id, ...request} = req;
+        const {metadataReference} = request;
+        if (request.publicationType === 'isbn-ismn') {
+          if (request.formatDetails.format === 'printed-and-electronic') {
+            const printedMetadataArray = await resolvePrintedInProgress(metadataReference);
+            const electronicMetadataArray = await resolveElectronicInProgress(metadataReference);
+            const metadataArray = [
+              ...printedMetadataArray,
+              ...electronicMetadataArray
+            ];
+            const newRequest = {
+              ...request,
+              metadataReference: metadataArray
+            };
 
-    //     const blobId = request.metadataReference.id;
-    //     return retriveMetadataAndUpdate(blobId);
-    //   }));
-    // }
+            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
 
-    async function retriveMetadataAndUpdate(blobId, format) {
-      const response = await melindaClient.getBlobMetadata({id: blobId});
+          if (request.formatDetails.format === 'printed') {
+            const newRequest = await resolvePrintedInProgress(metadataReference);
+            return setBackground({requests, requestId: request._id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
+
+          if (request.formatDetails.format === 'electronic') {
+            const newRequest = await resolveElectronicInProgress(metadataReference);
+            return setBackground({requests, requestId: request._id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
+        }
+      }));
+    }
+
+    async function resolvePrintedInProgress(metadataReference) {
+      const responsePaperback = await retriveMetadataAndFormatMetadata('paperback', metadataReference);
+      const responseHardback = await retriveMetadataAndFormatMetadata('hardback', metadataReference);
+      const responseSpiralbinding = await retriveMetadataAndFormatMetadata('spiralbinding', metadataReference);
+      const responseOtherPrints = await retriveMetadataAndFormatMetadata('otherPrints', metadataReference);
+
+      const metadataArray = [];
+      responsePaperback !== undefined && metadataArray.push(responsePaperback);
+      responseHardback !== undefined && metadataArray.push(responseHardback);
+      responseSpiralbinding !== undefined && metadataArray.push(responseSpiralbinding);
+      responseOtherPrints !== undefined && metadataArray.push(responseOtherPrints);
+
+      return metadataArray;
+    }
+
+    async function resolveElectronicInProgress(metadataReference) {
+      const responsePdf = await retriveMetadataAndFormatMetadata('pdf', metadataReference);
+      const responseEpub = await retriveMetadataAndFormatMetadata('epub', metadataReference);
+      const responseMp3 = await retriveMetadataAndFormatMetadata('mp3', metadataReference);
+      const responseCd = await retriveMetadataAndFormatMetadata('cd', metadataReference);
+      const responseOtherFile = await retriveMetadataAndFormatMetadata('otherFile', metadataReference);
+
+      const metadataArray = [];
+      responsePdf !== undefined && metadataArray.push(responsePdf);
+      responseEpub !== undefined && metadataArray.push(responseEpub);
+      responseMp3 !== undefined && metadataArray.push(responseMp3);
+      responseCd !== undefined && metadataArray.push(responseCd);
+      responseOtherFile !== undefined && metadataArray.push(responseOtherFile);
+
+      return metadataArray;
+    }
+
+
+    async function retriveMetadataAndFormatMetadata(subFormat, metadata) {
+      const individualMetadata = metadata.find(item => item.format === subFormat);
+      const blobId = individualMetadata && individualMetadata.id;
+      const response = blobId && await melindaClient.getBlobMetadata({id: blobId});
+
+      if (response === undefined) {
+        return response;
+      }
+
       if (response.state === 'PROCESSED') {
-        return response.processingInfo.importResults[0].status === 'DUPLICATE'
-          ? format
-            ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId: response.processingInfo.importResults[0].metadata.matches[0], status: response.state})
-            : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED,
-              format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format,
-              subFormat: '',
-              blobId: response.processingInfo.importResults[0].metadata.matches[0],
-              type,
-              status: response.state})
-          : format
-            ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId: response.processingInfo.importResults[0].metadata.id})
-            : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format, blobId: response.processingInfo.importResults[0].metadata.id, type});
-      } else if (response.state === 'TRANSFORMATION_FAILED') {
-        return format
-          ? resolveFormatDetails({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format, blobId, status: response.state})
-          : setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, format: request.publicationType === 'isbn-ismn' ? format : request.formatDetails.format, blobId, type, status: response.state});
+        return {
+          ...individualMetadata,
+          id: response.processingInfo.importResults[0].metadata.matches[0],
+          state: JOB_BACKGROUND_PROCESSING_PROCESSED,
+          status: response.state
+        };
+      }
+
+      if (response.state === 'TRANSFORMATION_FAILED' || response.state === 'ABORTED') {
+        return {
+          ...individualMetadata,
+          id: response.id,
+          state: JOB_BACKGROUND_PROCESSING_PROCESSED,
+          status: response.state
+        };
       }
     }
 
@@ -306,6 +355,7 @@ export default function (agenda) {
         await publications.update({path: `publications/${type}/${_id}`, payload});
         return logger.log('info', `Background processing State changed to ${state} for${_id}`);
       }
+
       const payload = format === 'printFormat' && format === 'fileFormat'
         ? {...request}
         : {...newRequest};
