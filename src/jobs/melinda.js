@@ -106,11 +106,20 @@ export default function (agenda) {
         const request = {...rest, id: _id};
         if (request.publicationType === 'issn' && (request.identifier && request.identifier.length > 0)) {
           request.formatDetails.forEach(item => {
-            const {_id, newRequest} = {...request, formatDetails: item.format};
+            const newRequest = {...request, formatDetails: item.format};
             acc.push({...newRequest, id: _id}); // eslint-disable-line functional/immutable-data
             return acc;
           });
-          return resolvePendingPromise(acc);
+          const metadataArray = await resolveIssnMetadata(acc);
+
+          return setBackground({
+            requests,
+            requestId: request.id,
+            state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
+            newRequest: {...request, metadataReference: metadataArray},
+            type,
+            status: 'PENDING_TRANSFORMATION'
+          });
         }
 
         if (request.publicationType === 'isbn-ismn' && (request.identifier && request.identifier.length > 0)) {
@@ -216,17 +225,28 @@ export default function (agenda) {
               blobId,
               status: 'PENDING_TRANSFORMATION'});
           }
-          return setBackground({
-            requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-            format: request.publicationType === 'isbn-ismn' ? Object.keys(request.formatDetails)[0] : request.formatDetails.format,
-            subFormat: request.publicationType === 'isbn-ismn' ? request.formatDetails[formatName].format : '',
-            blobId,
-            type,
-            status: 'PENDING_TRANSFORMATION'
-          });
         }
         if (format && !subFormat) {
           return resolveFormatDetails({requests, requestId: request.id, formatName});
+        }
+      }));
+    }
+
+    function resolveIssnPendingPromise({newRequests, format, formatName, status = 'PENDING_TRANSFORMATION'}) {
+      return Promise.all(newRequests.map(async request => {
+        // Create a new blob in Melinda's record import system
+        const blobId = await melindaClient.createBlob({
+          blob: JSON.stringify(newRequests),
+          type: 'application/json',
+          profile: MELINDA_RECORD_IMPORT_PROFILE
+        });
+        logger.log('info', `Created new blob ${blobId}`);
+
+        if (format && formatName) {
+          return {
+            ...request,
+            metadataReference: request.metadataReference.filter(item => item.format === formatName).map(item => updateMetadataReference({item, formatName, state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS, status, blobId}))
+          };
         }
       }));
     }
@@ -274,15 +294,48 @@ export default function (agenda) {
 
           if (request.formatDetails.format === 'printed') {
             const newRequest = await resolvePrintedInProgress(metadataReference);
-            return setBackground({requests, requestId: request._id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
 
           if (request.formatDetails.format === 'electronic') {
             const newRequest = await resolveElectronicInProgress(metadataReference);
-            return setBackground({requests, requestId: request._id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
         }
+
+        if (request.publicationType === 'issn') {
+          const newMetadata = await retriveIssnMetadataUpdates(metadataReference);
+          const newRequest = {...request, metadataReference: newMetadata};
+          return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+        }
       }));
+    }
+
+    async function resolveIssnMetadata(acc) {
+      const withPrintFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'printed'), format: true, formatName: 'printed'});
+      const withOnlineFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'online'), format: true, formatName: 'online'});
+      const withCdFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'cd'), format: true, formatName: 'cd'});
+      const withOtherFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'other'), format: true, formatName: 'other'});
+      const metadataArray = [];
+      withPrintFormat[0] !== undefined && metadataArray.push(withPrintFormat[0].metadataReference[0]);
+      withOnlineFormat[0] !== undefined && metadataArray.push(withOnlineFormat[0].metadataReference[0]);
+      withCdFormat[0] !== undefined && metadataArray.push(withCdFormat[0].metadataReference[0]);
+      withOtherFormat[0] !== undefined && metadataArray.push(withOtherFormat[0].metadataReference[0]);
+      return metadataArray;
+    }
+
+    async function retriveIssnMetadataUpdates(metadataReference) {
+      const responsePaperFormat = await retriveMetadataAndFormatMetadata('printed', metadataReference);
+      const responseOnlineFormat = await retriveMetadataAndFormatMetadata('online', metadataReference);
+      const responseCdFormat = await retriveMetadataAndFormatMetadata('cd', metadataReference);
+      const responseOtherFormat = await retriveMetadataAndFormatMetadata('other', metadataReference);
+      const metadataArray = [];
+      responsePaperFormat !== undefined && metadataArray.push(responsePaperFormat);
+      responseOnlineFormat !== undefined && metadataArray.push(responseOnlineFormat);
+      responseCdFormat !== undefined && metadataArray.push(responseCdFormat);
+      responseOtherFormat !== undefined && metadataArray.push(responseOtherFormat);
+
+      return metadataArray;
     }
 
     async function resolvePrintedInProgress(metadataReference) {
@@ -322,7 +375,6 @@ export default function (agenda) {
       const individualMetadata = metadata.find(item => item.format === subFormat);
       const blobId = individualMetadata && individualMetadata.id;
       const response = blobId && await melindaClient.getBlobMetadata({id: blobId});
-
       if (response === undefined) {
         return response;
       }
@@ -346,21 +398,16 @@ export default function (agenda) {
       }
     }
 
-    async function setBackground({requests, requestId, state, format, newRequest, type}) {
+    async function setBackground({requests, requestId, state, newRequest, type}) {
       const req = requests.find(item => item._id === requestId);
       const {_id, ...request} = req;
       if (request.publicationType === 'issn') {
-        const payload = {...request};
         const {publications} = client;
-        await publications.update({path: `publications/${type}/${_id}`, payload});
+        await publications.update({path: `publications/${type}/${_id}`, payload: newRequest});
         return logger.log('info', `Background processing State changed to ${state} for${_id}`);
       }
-
-      const payload = format === 'printFormat' && format === 'fileFormat'
-        ? {...request}
-        : {...newRequest};
       const {publications} = client;
-      await publications.update({path: `publications/${type}/${_id}`, payload});
+      await publications.update({path: `publications/${type}/${_id}`, payload: newRequest});
       return logger.log('info', `Background processing State changed to ${state} for${_id}`);
     }
   }
