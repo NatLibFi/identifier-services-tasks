@@ -63,7 +63,7 @@ export default function (agenda) {
         client,
         processCallback,
         query: {queries: [{query: {state, backgroundProcessingState: 'pending'}}], offset: null},
-        messageCallback: (count) => `${count} requests for ${type} ${subtype} are pending`,
+        messageCallback: (count) => `${count === undefined ? 0 : count} requests for ${type} ${subtype} are pending`,
         type,
         subtype
       });
@@ -131,9 +131,9 @@ export default function (agenda) {
         try {
           const response = await requests.fetchList({path: `requests/${type}`, query});
           const result = await response.json();
-          if (result.results) {
-            logger.log('debug', messageCallback(result.results.length));
-            return processCallback(result.results, type, subtype);
+          if (result) {
+            logger.log('debug', messageCallback(result.length));
+            return processCallback(result, type, subtype);
           }
         } catch (err) {
           // eslint-disable-next-line no-console
@@ -144,9 +144,9 @@ export default function (agenda) {
       if (type === 'publications') {
         const response = await requests.fetchList({path: `requests/${type}/${subtype}`, query});
         const result = await response.json();
-        if (result.results) {
-          logger.log('debug', messageCallback(result.results.length));
-          return processCallback(result.results, type, subtype);
+        if (result) {
+          logger.log('debug', messageCallback(result.length));
+          return processCallback(result, type, subtype);
         }
       }
     }
@@ -320,19 +320,9 @@ export default function (agenda) {
       logger.log('info', `Resource for ${type} ${subtype} has been created`);
       return {...request, createdResource: createdId};
     }
-    // Create and check publisher exist
     async function createPublisher(request) {
       if (Object.keys(request.publisher).length === 0) {
         return request;
-      }
-      // Check if the publisher has created already
-      const query = request.type === 'dissertation' ? {queries: [{query: {name: request.publisher.university.name}}], offset: null} : {queries: [{query: {request: request.id}}], offset: null};
-
-      const response = await publishers.fetchList({path: 'publishers', query});
-      const resultPublisher = await response.json();
-      if (resultPublisher.results.length > 0) {
-        logger.log('info', `Resource for publishers has already exists, using existing resource`);
-        return {...request, publisher: resultPublisher.results[0].id};
       }
 
       const publisher = await publishers.create({

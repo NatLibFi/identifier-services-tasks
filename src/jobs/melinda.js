@@ -101,13 +101,11 @@ export default function (agenda) {
 
   function processCallback(requests, state, type) {
     if (state === JOB_BACKGROUND_PROCESSING_PENDING) { // eslint-disable-line functional/no-conditional-statement
-      requests.reduce(async (acc, req) => {
-        const {_id, ...rest} = req;
-        const request = {...rest, id: _id};
+      requests.reduce(async (acc, request) => {
         if (request.publicationType === 'issn' && (request.identifier && request.identifier.length > 0)) {
           request.formatDetails.forEach(item => {
             const newRequest = {...request, formatDetails: item.format};
-            acc.push({...newRequest, id: _id}); // eslint-disable-line functional/immutable-data
+            acc.push({...newRequest, id: request.id}); // eslint-disable-line functional/immutable-data
             return acc;
           });
           const metadataArray = await resolveIssnMetadata(acc);
@@ -252,9 +250,7 @@ export default function (agenda) {
     }
 
     function resolveFormatDetails({requests, requestId, formatName}) {
-      const req = requests.find(item => item._id === requestId);
-      const {_id, ...rest} = req;
-      const request = {...rest, id: _id};
+      const request = requests.find(item => item.id === requestId);
       return {...request, formatDetails: {[formatName]: {...request.formatDetails[formatName]}}};
     }
 
@@ -273,8 +269,7 @@ export default function (agenda) {
     }
 
     if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
-      return Promise.all(requests.map(async req => {
-        const {_id, ...request} = req;
+      return Promise.all(requests.map(async request => {
         const {metadataReference} = request;
         if (request.publicationType === 'isbn-ismn') {
           if (request.formatDetails.format === 'printed-and-electronic') {
@@ -289,24 +284,26 @@ export default function (agenda) {
               metadataReference: metadataArray
             };
 
-            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
 
           if (request.formatDetails.format === 'printed') {
-            const newRequest = await resolvePrintedInProgress(metadataReference);
-            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+            const newMetadata = await resolvePrintedInProgress(metadataReference);
+            const newRequest = {...request, metadataReference: newMetadata};
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
 
           if (request.formatDetails.format === 'electronic') {
-            const newRequest = await resolveElectronicInProgress(metadataReference);
-            return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+            const newMetadata = await resolveElectronicInProgress(metadataReference);
+            const newRequest = {...request, metadataReference: newMetadata};
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
         }
 
         if (request.publicationType === 'issn') {
           const newMetadata = await retriveIssnMetadataUpdates(metadataReference);
           const newRequest = {...request, metadataReference: newMetadata};
-          return setBackground({requests, requestId: _id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
         }
       }));
     }
@@ -399,16 +396,15 @@ export default function (agenda) {
     }
 
     async function setBackground({requests, requestId, state, newRequest, type}) {
-      const req = requests.find(item => item._id === requestId);
-      const {_id, ...request} = req;
+      const request = requests.find(item => item.id === requestId);
       if (request.publicationType === 'issn') {
         const {publications} = client;
-        await publications.update({path: `publications/${type}/${_id}`, payload: newRequest});
-        return logger.log('info', `Background processing State changed to ${state} for${_id}`);
+        await publications.update({path: `publications/${type}/${request.id}`, payload: newRequest});
+        return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
       }
       const {publications} = client;
-      await publications.update({path: `publications/${type}/${_id}`, payload: newRequest});
-      return logger.log('info', `Background processing State changed to ${state} for${_id}`);
+      await publications.update({path: `publications/${type}/${request.id}`, payload: newRequest});
+      return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
     }
   }
 

@@ -68,14 +68,14 @@ export default function (agenda) {
         const {requests} = client;
         const response = await requests.fetchList({path: `requests/${type}`, query: {queries: [{query: {backgroundProcessingState: 'inProgress'}}], offset: null}});
         const result = await response.json();
-        return result.results;
+        return result;
       } catch (err) {
         return err;
       }
     }
 
     function filterRequests(requests) {
-      return requests.filter(request => moment(request.lastUpdated.timestamp).add(humanInterval(CLEANUP_REQUEST_TTL))
+      return requests.filter(request => moment(Number(request.lastUpdated.timestamp)).add(humanInterval(CLEANUP_REQUEST_TTL))
         .isBefore(moment()));
     }
 
@@ -88,7 +88,6 @@ export default function (agenda) {
         const payload = {...request, backgroundProcessingState: state};
         const {requests} = client;
         await requests.update({path: `requests/${type}/${request.id}`, payload});
-
         logger.log('info', `Background processing State changed to ${state} for ${request.id}`);
       }
     }
