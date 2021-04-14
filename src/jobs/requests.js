@@ -329,9 +329,9 @@ export default function (agenda) {
 
       const response = await publishers.fetchList({path: 'publishers', query});
       const resultPublisher = await response.json();
-      if (resultPublisher.results.length > 0) {
+      if (resultPublisher.length > 0) {
         logger.log('info', `Resource for publishers has already exists, using existing resource`);
-        return {...request, publisher: resultPublisher.results[0].id};
+        return {...request, publisher: resultPublisher[0].id};
       }
 
       const publisher = await publishers.create({
