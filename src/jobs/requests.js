@@ -324,6 +324,15 @@ export default function (agenda) {
       if (Object.keys(request.publisher).length === 0) {
         return request;
       }
+      // Check if the publisher has created already
+      const query = request.type === 'dissertation' ? {queries: [{query: {name: request.publisher.university.name}}], offset: null} : {queries: [{query: {request: request.id}}], offset: null};
+
+      const response = await publishers.fetchList({path: 'publishers', query});
+      const resultPublisher = await response.json();
+      if (resultPublisher.results.length > 0) {
+        logger.log('info', `Resource for publishers has already exists, using existing resource`);
+        return {...request, publisher: resultPublisher.results[0].id};
+      }
 
       const publisher = await publishers.create({
         path: 'publishers',
