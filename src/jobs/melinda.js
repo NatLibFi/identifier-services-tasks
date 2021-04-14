@@ -173,11 +173,12 @@ export default function (agenda) {
       const hardback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'hardback'});
       const spiralbinding = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'spiralbinding'});
       const otherPrints = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'otherPrints'});
-      const metadataArray = [];
-      paperback[0] !== undefined && metadataArray.push(paperback[0].metadataReference[0]);
-      hardback[0] !== undefined && metadataArray.push(hardback[0].metadataReference[0]);
-      spiralbinding[0] !== undefined && metadataArray.push(spiralbinding[0].metadataReference[0]);
-      otherPrints[0] !== undefined && metadataArray.push(otherPrints[0].metadataReference[0]);
+      const metadataArray = request.metadataReference;
+
+      paperback[0] === undefined ? metadataArray.find(i => i.format === 'paperback') !== undefined && metadataArray.find(i => i.format === 'paperback') : metadataArray.push(paperback[0].metadataReference[0]);
+      hardback[0] === undefined ? metadataArray.find(i => i.format === 'hardback') !== undefined && metadataArray.find(i => i.format === 'hardback') : metadataArray.push(hardback[0].metadataReference[0]);
+      spiralbinding[0] === undefined ? metadataArray.find(i => i.format === 'spiralbinding') !== undefined && metadataArray.find(i => i.format === 'spiralbinding') : metadataArray.push(spiralbinding[0].metadataReference[0]);
+      otherPrints[0] === undefined ? metadataArray.find(i => i.format === 'otherPrints') !== undefined && metadataArray.find(i => i.format === 'otherPrints') : metadataArray.push(otherPrints[0].metadataReference[0]);
       const combineAll = {
         ...request,
         metadataReference: metadataArray
@@ -191,12 +192,12 @@ export default function (agenda) {
       const mp3 = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'mp3'});
       const cd = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'cd'});
       const otherFile = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'otherFile'});
-      const metadataArray = [];
-      pdf[0] !== undefined && metadataArray.push(pdf[0].metadataReference[0]);
-      epub[0] !== undefined && metadataArray.push(epub[0].metadataReference[0]);
-      mp3[0] !== undefined && metadataArray.push(mp3[0].metadataReference[0]);
-      cd[0] !== undefined && metadataArray.push(cd[0].metadataReference[0]);
-      otherFile[0] !== undefined && metadataArray.push(otherFile[0].metadataReference[0]);
+      const metadataArray = request.metadataReference;
+      pdf[0] === undefined ? metadataArray.find(i => i.format === 'pdf') !== undefined && metadataArray.find(i => i.format === 'pdf') : metadataArray.push(pdf[0].metadataReference[0]);
+      epub[0] === undefined ? metadataArray.find(i => i.format === 'epub') !== undefined && metadataArray.find(i => i.format === 'epub') : metadataArray.push(epub[0].metadataReference[0]);
+      mp3[0] === undefined ? metadataArray.find(i => i.format === 'mp3') !== undefined && metadataArray.find(i => i.format === 'mp3') : metadataArray.push(mp3[0].metadataReference[0]);
+      cd[0] === undefined ? metadataArray.find(i => i.format === 'cd') !== undefined && metadataArray.find(i => i.format === 'cd') : metadataArray.push(cd[0].metadataReference[0]);
+      otherFile[0] === undefined ? metadataArray.find(i => i.format === 'otherFile') !== undefined && metadataArray.find(i => i.format === 'otherFile') : metadataArray.push(otherFile[0].metadataReference[0]);
       const combineAll = {
         ...request,
         metadataReference: metadataArray
