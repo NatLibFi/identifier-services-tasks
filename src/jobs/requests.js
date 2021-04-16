@@ -108,6 +108,8 @@ export default function (agenda) {
     }
 
     if (type === 'publications') {
+      // eslint-disable-next-line no-console
+      logger.log('debug UNDEFINED', request);
       await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
       return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
     }
@@ -152,6 +154,7 @@ export default function (agenda) {
   }
 
   async function createResource(request, type, subtype) {
+    logger.log('debug', request);
     const result = await create(request, type, subtype);
     const filteredDoc = filterDoc(result);
     const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
