@@ -272,7 +272,7 @@ export default function (agenda) {
         .reduce((acc, [
           key,
           value
-        ]) => ({...acc, [key]: value}), {});
+        ]) => ({...acc, [key]: value}), {request: true});
     }
     function filter(key) {
       const allowedKeys = [
