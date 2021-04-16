@@ -109,7 +109,7 @@ export default function (agenda) {
 
     if (type === 'publications') {
       // eslint-disable-next-line no-console
-      console.log(request);
+      logger.log('debug UNDEFINED', request);
       await requests.update({path: `requests/${type}/${subtype}/${request.id}`, payload: filteredDoc});
       return logger.log('info', `Background processing State changed to ${state} for${request.id}`);
     }
