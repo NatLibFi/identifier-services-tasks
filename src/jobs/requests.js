@@ -136,7 +136,6 @@ export default function (agenda) {
             return processCallback(result, type, subtype);
           }
         } catch (err) {
-          // eslint-disable-next-line no-console
           logger.log('This is Error', type);
         }
       }
