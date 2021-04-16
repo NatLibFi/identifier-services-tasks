@@ -85,10 +85,10 @@ export default function (agenda) {
       }));
 
       async function setBackground(request, state) {
-        const {_id, ...payload} = {...request, backgroundProcessingState: state};
+        const {_id, ...payload} = {...request, backgroundProcessingState: state}; // eslint-disable-line no-unused-vars
         const {requests} = client;
-        await requests.update({path: `requests/${type}/${_id}`, payload});
-        logger.log('info', `Background processing State changed to ${state} for ${_id}`);
+        await requests.update({path: `requests/${type}/${request.id}`, payload});
+        logger.log('info', `Background processing State changed to ${state} for ${request.id}`);
       }
     }
   }
