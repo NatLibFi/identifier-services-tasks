@@ -153,6 +153,7 @@ export default function (agenda) {
   }
 
   async function createResource(request, type, subtype) {
+    logger.log('debug', request);
     const result = await create(request, type, subtype);
     const filteredDoc = filterDoc(result);
     const payload = {...filteredDoc, backgroundProcessingState: 'processed'};
