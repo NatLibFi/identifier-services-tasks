@@ -103,12 +103,12 @@ export default function (agenda) {
     if (state === JOB_BACKGROUND_PROCESSING_PENDING) { // eslint-disable-line functional/no-conditional-statement
       requests.reduce(async (acc, request) => {
         if (request.publicationType === 'issn' && (request.identifier && request.identifier.length > 0)) {
+          const accumulateRequest = [];
           request.formatDetails.forEach(item => {
             const newRequest = {...request, formatDetails: item.format};
-            acc.push({...newRequest, id: request.id}); // eslint-disable-line functional/immutable-data
-            return acc;
+            accumulateRequest.push({...newRequest, id: request.id}); // eslint-disable-line functional/immutable-data
           });
-          const metadataArray = await resolveIssnMetadata(acc);
+          const metadataArray = await resolveIssnMetadata(accumulateRequest);
 
           return setBackground({
             requests,
