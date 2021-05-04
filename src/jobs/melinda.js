@@ -1,4 +1,5 @@
 /* eslint-disable max-lines */
+/* eslint-disable no-nested-ternary */
 /* eslint-disable functional/immutable-data */
 /* eslint-disable no-unused-expressions */
 /* eslint-disable max-statements */
@@ -173,17 +174,25 @@ export default function (agenda) {
       const hardback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'hardback'});
       const spiralbinding = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'spiralbinding'});
       const otherPrints = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'otherPrints'});
-      const metadataArray = request.metadataReference;
+      const metadataArray = addMetadataReference(request);
 
-      paperback[0] === undefined ? metadataArray.find(i => i.format === 'paperback') !== undefined && metadataArray.find(i => i.format === 'paperback') : metadataArray.push(paperback[0].metadataReference[0]);
-      hardback[0] === undefined ? metadataArray.find(i => i.format === 'hardback') !== undefined && metadataArray.find(i => i.format === 'hardback') : metadataArray.push(hardback[0].metadataReference[0]);
-      spiralbinding[0] === undefined ? metadataArray.find(i => i.format === 'spiralbinding') !== undefined && metadataArray.find(i => i.format === 'spiralbinding') : metadataArray.push(spiralbinding[0].metadataReference[0]);
-      otherPrints[0] === undefined ? metadataArray.find(i => i.format === 'otherPrints') !== undefined && metadataArray.find(i => i.format === 'otherPrints') : metadataArray.push(otherPrints[0].metadataReference[0]);
+      paperback[0] !== undefined && replaceMetadataSubData(metadataArray, paperback[0].metadataReference[0], 'paperback');
+      hardback[0] !== undefined && replaceMetadataSubData(metadataArray, hardback[0].metadataReference[0], 'hardback');
+      spiralbinding[0] !== undefined && replaceMetadataSubData(metadataArray, spiralbinding[0].metadataReference[0], 'spiralbinding');
+      otherPrints[0] !== undefined && replaceMetadataSubData(metadataArray, otherPrints[0].metadataReference[0], 'otherPrints');
       const combineAll = {
         ...request,
         metadataReference: metadataArray
       };
       return combineAll;
+    }
+
+    function replaceMetadataSubData(metadataArray, newMetadata, subType) {
+      metadataArray.forEach((item, index) => {
+        if (item.format === subType) { // eslint-disable-line functional/no-conditional-statement
+          metadataArray[index] = newMetadata;
+        }
+      });
     }
 
     async function handleFileFormat(request) {
@@ -192,17 +201,40 @@ export default function (agenda) {
       const mp3 = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'mp3'});
       const cd = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'cd'});
       const otherFile = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'fileFormat', subFormat: 'otherFile'});
-      const metadataArray = request.metadataReference;
-      pdf[0] === undefined ? metadataArray.find(i => i.format === 'pdf') !== undefined && metadataArray.find(i => i.format === 'pdf') : metadataArray.push(pdf[0].metadataReference[0]);
-      epub[0] === undefined ? metadataArray.find(i => i.format === 'epub') !== undefined && metadataArray.find(i => i.format === 'epub') : metadataArray.push(epub[0].metadataReference[0]);
-      mp3[0] === undefined ? metadataArray.find(i => i.format === 'mp3') !== undefined && metadataArray.find(i => i.format === 'mp3') : metadataArray.push(mp3[0].metadataReference[0]);
-      cd[0] === undefined ? metadataArray.find(i => i.format === 'cd') !== undefined && metadataArray.find(i => i.format === 'cd') : metadataArray.push(cd[0].metadataReference[0]);
-      otherFile[0] === undefined ? metadataArray.find(i => i.format === 'otherFile') !== undefined && metadataArray.find(i => i.format === 'otherFile') : metadataArray.push(otherFile[0].metadataReference[0]);
+      const metadataArray = addMetadataReference(request);
+      pdf[0] !== undefined && replaceMetadataSubData(metadataArray, pdf[0].metadataReference[0], 'pdf');
+      epub[0] !== undefined && replaceMetadataSubData(metadataArray, epub[0].metadataReference[0], 'epub');
+      mp3[0] !== undefined && replaceMetadataSubData(metadataArray, mp3[0].metadataReference[0], 'mp3');
+      cd[0] !== undefined && replaceMetadataSubData(metadataArray, cd[0].metadataReference[0], 'cd');
+      otherFile[0] !== undefined && replaceMetadataSubData(metadataArray, otherFile[0].metadataReference[0], 'otherFile');
       const combineAll = {
         ...request,
         metadataReference: metadataArray
       };
       return combineAll;
+    }
+
+    function addMetadataReference(request) {
+      const {formatDetails} = request;
+      const allFormats = formatDetails.fileFormat && formatDetails.printFormat
+        ? [
+          ...formatDetails.fileFormat.format,
+          ...formatDetails.printFormat.format
+        ]
+        : formatDetails.fileFormat
+          ? [...formatDetails.fileFormat.format]
+          : formatDetails.printFormat && [...formatDetails.printFormat.format];
+
+      return allFormats.map(item => { // eslint-disable-line array-callback-return
+        // eslint-disable-next-line no-extra-parens
+        if ((formatDetails.fileFormat && formatDetails.fileFormat.format.includes(item)) || (formatDetails.printFormat && formatDetails.printFormat.format.includes(item))) { // eslint-disable-line functional/no-conditional-statement
+          return {
+            format: item,
+            state: 'pending',
+            update: false
+          };
+        }
+      });
     }
 
 
@@ -314,11 +346,11 @@ export default function (agenda) {
       const withOnlineFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'online'), format: true, formatName: 'online'});
       const withCdFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'cd'), format: true, formatName: 'cd'});
       const withOtherFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'other'), format: true, formatName: 'other'});
-      const metadataArray = [];
-      withPrintFormat[0] !== undefined && metadataArray.push(withPrintFormat[0].metadataReference[0]);
-      withOnlineFormat[0] !== undefined && metadataArray.push(withOnlineFormat[0].metadataReference[0]);
-      withCdFormat[0] !== undefined && metadataArray.push(withCdFormat[0].metadataReference[0]);
-      withOtherFormat[0] !== undefined && metadataArray.push(withOtherFormat[0].metadataReference[0]);
+      const metadataArray = addMetadataReference(request);
+      withPrintFormat[0] !== undefined && replaceMetadataSubData(metadataArray, withPrintFormat[0].metadataReference[0], 'printed');
+      withOnlineFormat[0] !== undefined && replaceMetadataSubData(metadataArray, withOnlineFormat[0].metadataReference[0], 'online');
+      withCdFormat[0] !== undefined && replaceMetadataSubData(metadataArray, withCdFormat[0].metadataReference[0], 'cd');
+      withOtherFormat[0] !== undefined && replaceMetadataSubData(metadataArray, withOtherFormat[0].metadataReference[0], 'other');
       return metadataArray;
     }
 
@@ -327,11 +359,11 @@ export default function (agenda) {
       const responseOnlineFormat = await retriveMetadataAndFormatMetadata('online', metadataReference);
       const responseCdFormat = await retriveMetadataAndFormatMetadata('cd', metadataReference);
       const responseOtherFormat = await retriveMetadataAndFormatMetadata('other', metadataReference);
-      const metadataArray = [];
-      responsePaperFormat !== undefined && metadataArray.push(responsePaperFormat);
-      responseOnlineFormat !== undefined && metadataArray.push(responseOnlineFormat);
-      responseCdFormat !== undefined && metadataArray.push(responseCdFormat);
-      responseOtherFormat !== undefined && metadataArray.push(responseOtherFormat);
+      const metadataArray = addMetadataReference(request);
+      responsePaperFormat !== undefined && replaceMetadataSubData(metadataArray, responsePaperFormat, 'printed');
+      responseOnlineFormat !== undefined && replaceMetadataSubData(metadataArray, responseOnlineFormat, 'online');
+      responseCdFormat !== undefined && replaceMetadataSubData(metadataArray, responseCdFormat, 'cd');
+      responseOtherFormat !== undefined && replaceMetadataSubData(metadataArray, responseOtherFormat, 'other');
 
       return metadataArray;
     }
@@ -342,11 +374,11 @@ export default function (agenda) {
       const responseSpiralbinding = await retriveMetadataAndFormatMetadata('spiralbinding', metadataReference);
       const responseOtherPrints = await retriveMetadataAndFormatMetadata('otherPrints', metadataReference);
 
-      const metadataArray = [];
-      responsePaperback !== undefined && metadataArray.push(responsePaperback);
-      responseHardback !== undefined && metadataArray.push(responseHardback);
-      responseSpiralbinding !== undefined && metadataArray.push(responseSpiralbinding);
-      responseOtherPrints !== undefined && metadataArray.push(responseOtherPrints);
+      const metadataArray = addMetadataReference(request);
+      responsePaperback !== undefined && replaceMetadataSubData(metadataArray, responsePaperback, 'paperback');
+      responseHardback !== undefined && replaceMetadataSubData(metadataArray, responseHardback, 'hardback');
+      responseSpiralbinding !== undefined && replaceMetadataSubData(metadataArray, responseSpiralbinding, 'spiralbinding');
+      responseOtherPrints !== undefined && replaceMetadataSubData(metadataArray, responseOtherPrints, 'otherPrints');
 
       return metadataArray;
     }
@@ -358,12 +390,12 @@ export default function (agenda) {
       const responseCd = await retriveMetadataAndFormatMetadata('cd', metadataReference);
       const responseOtherFile = await retriveMetadataAndFormatMetadata('otherFile', metadataReference);
 
-      const metadataArray = [];
-      responsePdf !== undefined && metadataArray.push(responsePdf);
-      responseEpub !== undefined && metadataArray.push(responseEpub);
-      responseMp3 !== undefined && metadataArray.push(responseMp3);
-      responseCd !== undefined && metadataArray.push(responseCd);
-      responseOtherFile !== undefined && metadataArray.push(responseOtherFile);
+      const metadataArray = addMetadataReference(request);
+      responsePdf !== undefined && replaceMetadataSubData(metadataArray, responsePdf, 'pdf');
+      responseEpub !== undefined && replaceMetadataSubData(metadataArray, responseEpub, 'epub');
+      responseMp3 !== undefined && replaceMetadataSubData(metadataArray, responseMp3, 'map3');
+      responseCd !== undefined && replaceMetadataSubData(metadataArray, responseCd, 'cd');
+      responseOtherFile !== undefined && replaceMetadataSubData(metadataArray, responseOtherFile, 'otherFile');
 
       return metadataArray;
     }
@@ -372,27 +404,29 @@ export default function (agenda) {
     async function retriveMetadataAndFormatMetadata(subFormat, metadata) {
       const individualMetadata = metadata.find(item => item.format === subFormat);
       const blobId = individualMetadata && individualMetadata.id;
-      const response = blobId && await melindaClient.getBlobMetadata({id: blobId});
-      if (response === undefined) {
-        return response;
-      }
+      if (blobId !== undefined) {
+        const response = blobId && await melindaClient.getBlobMetadata({id: blobId});
+        if (response === undefined) {
+          return response;
+        }
 
-      if (response.state === 'PROCESSED') {
-        return {
-          ...individualMetadata,
-          id: response.processingInfo.importResults[0].metadata.matches[0],
-          state: JOB_BACKGROUND_PROCESSING_PROCESSED,
-          status: response.state
-        };
-      }
+        if (response.state === 'PROCESSED') {
+          return {
+            ...individualMetadata,
+            id: response.processingInfo.importResults[0].metadata.matches[0],
+            state: JOB_BACKGROUND_PROCESSING_PROCESSED,
+            status: response.state
+          };
+        }
 
-      if (response.state === 'TRANSFORMATION_FAILED' || response.state === 'ABORTED') {
-        return {
-          ...individualMetadata,
-          id: response.id,
-          state: JOB_BACKGROUND_PROCESSING_PROCESSED,
-          status: response.state
-        };
+        if (response.state === 'TRANSFORMATION_FAILED' || response.state === 'ABORTED') {
+          return {
+            ...individualMetadata,
+            id: response.id,
+            state: JOB_BACKGROUND_PROCESSING_PROCESSED,
+            status: response.state
+          };
+        }
       }
     }
 
