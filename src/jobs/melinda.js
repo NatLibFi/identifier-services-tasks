@@ -216,25 +216,27 @@ export default function (agenda) {
 
     function addMetadataReference(request) {
       const {formatDetails} = request;
-      const allFormats = formatDetails.fileFormat && formatDetails.printFormat
-        ? [
-          ...formatDetails.fileFormat.format,
-          ...formatDetails.printFormat.format
-        ]
-        : formatDetails.fileFormat
-          ? [...formatDetails.fileFormat.format]
-          : formatDetails.printFormat && [...formatDetails.printFormat.format];
+      if (formatDetails !== undefined) {
+        const allFormats = formatDetails.fileFormat && formatDetails.printFormat
+          ? [
+            ...formatDetails.fileFormat.format,
+            ...formatDetails.printFormat.format
+          ]
+          : formatDetails.fileFormat
+            ? [...formatDetails.fileFormat.format]
+            : formatDetails.printFormat && [...formatDetails.printFormat.format];
 
-      return allFormats.map(item => { // eslint-disable-line array-callback-return
-        // eslint-disable-next-line no-extra-parens
-        if ((formatDetails.fileFormat && formatDetails.fileFormat.format.includes(item)) || (formatDetails.printFormat && formatDetails.printFormat.format.includes(item))) { // eslint-disable-line functional/no-conditional-statement
-          return {
-            format: item,
-            state: 'pending',
-            update: false
-          };
-        }
-      });
+        return allFormats.map(item => { // eslint-disable-line array-callback-return
+          // eslint-disable-next-line no-extra-parens
+          if ((formatDetails.fileFormat && formatDetails.fileFormat.format.includes(item)) || (formatDetails.printFormat && formatDetails.printFormat.format.includes(item))) { // eslint-disable-line functional/no-conditional-statement
+            return {
+              format: item,
+              state: 'pending',
+              update: false
+            };
+          }
+        });
+      }
     }
 
 
