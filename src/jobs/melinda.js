@@ -109,7 +109,7 @@ export default function (agenda) {
             const newRequest = {...request, formatDetails: item.format};
             accumulateRequest.push({...newRequest, id: request.id}); // eslint-disable-line functional/immutable-data
           });
-          const metadataArray = await resolveIssnMetadata(accumulateRequest);
+          const metadataArray = await resolveIssnMetadata(accumulateRequest, request);
 
           return setBackground({
             requests,
@@ -217,6 +217,15 @@ export default function (agenda) {
     function addMetadataReference(request) {
       const {formatDetails} = request;
       if (formatDetails !== undefined) {
+        if (request.publicationType === 'issn') {
+          const allFormats = formatDetails.map(i => i.format);
+          return allFormats.map(item => ({
+            format: item,
+            state: 'pending',
+            update: false
+          }));
+        }
+
         const allFormats = formatDetails.fileFormat && formatDetails.printFormat
           ? [
             ...formatDetails.fileFormat.format,
@@ -323,27 +332,27 @@ export default function (agenda) {
           }
 
           if (request.formatDetails.format === 'printed') {
-            const newMetadata = await resolvePrintedInProgress(metadataReference);
+            const newMetadata = await resolvePrintedInProgress(metadataReference, request);
             const newRequest = {...request, metadataReference: newMetadata};
             return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
 
           if (request.formatDetails.format === 'electronic') {
-            const newMetadata = await resolveElectronicInProgress(metadataReference);
+            const newMetadata = await resolveElectronicInProgress(metadataReference, request);
             const newRequest = {...request, metadataReference: newMetadata};
             return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
           }
         }
 
         if (request.publicationType === 'issn') {
-          const newMetadata = await retriveIssnMetadataUpdates(metadataReference);
+          const newMetadata = await retriveIssnMetadataUpdates(metadataReference, request);
           const newRequest = {...request, metadataReference: newMetadata};
           return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
         }
       }));
     }
 
-    async function resolveIssnMetadata(acc) {
+    async function resolveIssnMetadata(acc, request) {
       const withPrintFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'printed'), format: true, formatName: 'printed'});
       const withOnlineFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'online'), format: true, formatName: 'online'});
       const withCdFormat = await resolveIssnPendingPromise({newRequests: acc.filter(item => item.formatDetails === 'cd'), format: true, formatName: 'cd'});
@@ -356,7 +365,7 @@ export default function (agenda) {
       return metadataArray;
     }
 
-    async function retriveIssnMetadataUpdates(metadataReference) {
+    async function retriveIssnMetadataUpdates(metadataReference, request) {
       const responsePaperFormat = await retriveMetadataAndFormatMetadata('printed', metadataReference);
       const responseOnlineFormat = await retriveMetadataAndFormatMetadata('online', metadataReference);
       const responseCdFormat = await retriveMetadataAndFormatMetadata('cd', metadataReference);
@@ -370,7 +379,7 @@ export default function (agenda) {
       return metadataArray;
     }
 
-    async function resolvePrintedInProgress(metadataReference) {
+    async function resolvePrintedInProgress(metadataReference, request) {
       const responsePaperback = await retriveMetadataAndFormatMetadata('paperback', metadataReference);
       const responseHardback = await retriveMetadataAndFormatMetadata('hardback', metadataReference);
       const responseSpiralbinding = await retriveMetadataAndFormatMetadata('spiralbinding', metadataReference);
@@ -385,7 +394,7 @@ export default function (agenda) {
       return metadataArray;
     }
 
-    async function resolveElectronicInProgress(metadataReference) {
+    async function resolveElectronicInProgress(metadataReference, request) {
       const responsePdf = await retriveMetadataAndFormatMetadata('pdf', metadataReference);
       const responseEpub = await retriveMetadataAndFormatMetadata('epub', metadataReference);
       const responseMp3 = await retriveMetadataAndFormatMetadata('mp3', metadataReference);
