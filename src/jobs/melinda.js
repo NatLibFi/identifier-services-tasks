@@ -169,6 +169,46 @@ export default function (agenda) {
       }, []);
     }
 
+    if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
+      return Promise.all(requests.map(async request => {
+        const {metadataReference} = request;
+        if (request.publicationType === 'isbn-ismn') {
+          if (request.formatDetails.format === 'printed-and-electronic') {
+            const printedMetadataArray = await resolvePrintedInProgress(metadataReference);
+            const electronicMetadataArray = await resolveElectronicInProgress(metadataReference);
+            const metadataArray = [
+              ...printedMetadataArray,
+              ...electronicMetadataArray
+            ];
+            const newRequest = {
+              ...request,
+              metadataReference: metadataArray
+            };
+
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
+
+          if (request.formatDetails.format === 'printed') {
+            const newMetadata = await resolvePrintedInProgress(metadataReference, request);
+            const newRequest = {...request, metadataReference: newMetadata};
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
+
+          if (request.formatDetails.format === 'electronic') {
+            const newMetadata = await resolveElectronicInProgress(metadataReference, request);
+            const newRequest = {...request, metadataReference: newMetadata};
+            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+          }
+        }
+
+        if (request.publicationType === 'issn') {
+          const newMetadata = await retriveIssnMetadataUpdates(metadataReference, request);
+          const newRequest = {...request, metadataReference: newMetadata};
+          return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
+        }
+      }));
+    }
+
     async function handlePrintedFormat(request) {
       const paperback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'paperback'});
       const hardback = await resolvePendingPromise({newRequests: [request], format: true, formatName: 'printFormat', subFormat: 'hardback'});
@@ -310,46 +350,6 @@ export default function (agenda) {
         },
         metadataReference: request.metadataReference.filter(item => item.format === subFormat).map(item => updateMetadataReference({item, subFormat, state, status, blobId}))
       };
-    }
-
-    if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
-      return Promise.all(requests.map(async request => {
-        const {metadataReference} = request;
-        if (request.publicationType === 'isbn-ismn') {
-          if (request.formatDetails.format === 'printed-and-electronic') {
-            const printedMetadataArray = await resolvePrintedInProgress(metadataReference);
-            const electronicMetadataArray = await resolveElectronicInProgress(metadataReference);
-            const metadataArray = [
-              ...printedMetadataArray,
-              ...electronicMetadataArray
-            ];
-            const newRequest = {
-              ...request,
-              metadataReference: metadataArray
-            };
-
-            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
-          }
-
-          if (request.formatDetails.format === 'printed') {
-            const newMetadata = await resolvePrintedInProgress(metadataReference, request);
-            const newRequest = {...request, metadataReference: newMetadata};
-            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
-          }
-
-          if (request.formatDetails.format === 'electronic') {
-            const newMetadata = await resolveElectronicInProgress(metadataReference, request);
-            const newRequest = {...request, metadataReference: newMetadata};
-            return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
-          }
-        }
-
-        if (request.publicationType === 'issn') {
-          const newMetadata = await retriveIssnMetadataUpdates(metadataReference, request);
-          const newRequest = {...request, metadataReference: newMetadata};
-          return setBackground({requests, requestId: request.id, state: JOB_BACKGROUND_PROCESSING_PROCESSED, newRequest, type});
-        }
-      }));
     }
 
     async function resolveIssnMetadata(acc, request) {
