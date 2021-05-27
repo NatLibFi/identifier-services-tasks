@@ -299,13 +299,13 @@ export default function (agenda) {
     }
 
     if (type === 'publishers') {
-      const result = await publishers.create({path: type, payload: formatPublisher({...request, publisherType: request.publisherType ? request.publisherType : 'A', selfPublisher: false})});
+      const result = await publishers.create({path: type, payload: formatPublisher({...request, publisherType: request.publisherType ? request.publisherType : 'P', selfPublisher: false})});
       logger.log('info', `Resource for ${type} has been created`);
       return {...request, createdResource: result};
     }
 
     if (type === 'publications') {
-      const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'T', selfPublisher: true, publicationPublisher: true}});
+      const publication = await createPublisher({...request, publisher: {...request.publisher, publisherType: request.publisherType ? request.publisherType : 'A', selfPublisher: false, publicationPublisher: true}});
       const newPublication = publication.isPublic
         ? {
           ...publication,
