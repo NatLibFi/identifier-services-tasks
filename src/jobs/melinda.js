@@ -335,7 +335,7 @@ export default function (agenda) {
           ].forEach(v => allFormats.push(v)) // eslint-disable-line functional/immutable-data
           : otherFileFormat
             ? otherFileFormat.forEach(v => allFormats.push(v)) // eslint-disable-line functional/immutable-data
-            : otherPrintFormat && otherPrintFormat.forEach(v => allFormats.push(v)); // eslint-disable-line functional/immutable-data
+            : otherPrintFormat && Object.values(otherPrintFormat).forEach(v => allFormats.push(v)); // eslint-disable-line functional/immutable-data
         return allFormats.map(item => { // eslint-disable-line array-callback-return
           // eslint-disable-next-line no-extra-parens
           if (condition(formatDetails, item)) { // eslint-disable-line functional/no-conditional-statement
@@ -355,8 +355,8 @@ export default function (agenda) {
       return (
         (fileFormat && fileFormat.format.includes(item)) ||
         (printFormat && printFormat.format.includes(item)) ||
-        (otherFileFormat && (otherFileFormat[0] === item)) ||
-        (otherPrintFormat && (otherPrintFormat[0] === item))
+        (otherFileFormat && (Object.values(otherFileFormat).some(i => i === item))) ||
+        (otherPrintFormat && (Object.values(otherPrintFormat).some(i => i === item)))
       );
     }
 
@@ -365,19 +365,18 @@ export default function (agenda) {
       if (format && !subFormat) {
         return resolveFormatDetailsAndMetadata({requests, requestId: newRequest.id, formatName, other});
       }
-
       if (newRequest.formatDetails[formatName] === undefined) {
         return undefined;
       }
       if (newRequest.formatDetails[formatName].format === undefined && format && subFormat) {
         const blobId = await melindaClient.createBlob({
-          blob: JSON.stringify([{...newRequest, metadataReference: newRequest.metadataReference.filter(i => i.format === newRequest.formatDetails[formatName][0])}]),
+          blob: JSON.stringify([{...newRequest, metadataReference: newRequest.metadataReference.filter(i => i.format === newRequest.formatDetails[formatName][other])}]),
           type: 'application/json',
           profile: MELINDA_RECORD_IMPORT_PROFILE
         });
         logger.log('info', `Created new blob ${blobId}`);
 
-        return resolveSubFormatDetails({request: {...newRequest, metadataReference: newRequest.metadataReference.filter(i => newRequest.formatDetails[formatName][0] === i.format)},
+        return resolveSubFormatDetails({request: {...newRequest, metadataReference: newRequest.metadataReference.filter(i => newRequest.formatDetails[formatName][other] === i.format)},
           formatName,
           subFormat,
           state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
