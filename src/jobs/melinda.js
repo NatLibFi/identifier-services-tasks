@@ -121,7 +121,7 @@ export default function (agenda) {
             return {metadataReference};
           }
 
-          if (request.publicationType === 'issn' && (request.identifier && request.identifier.length > 0)) {
+          if (item.publicationType === 'issn' && (item.identifier && item.identifier.length > 0)) {
             const blobId = await melindaClient.createBlob({
               blob: JSON.stringify([item]),
               type: 'application/json',
@@ -133,14 +133,16 @@ export default function (agenda) {
             return {metadataReference};
           }
         }));
-        const combineAll = result.filter(i => i !== undefined && i.metadataReference).map(i => i.metadataReference[0]);
-        return setBackground({
-          requests,
-          requestId: request.id,
-          state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
-          metadataReference: combineAll,
-          type
-        });
+        if (request.identifier && request.identifier.length > 0) {
+          const combineAll = result.filter(i => i !== undefined && i.metadataReference).map(i => i.metadataReference[0]);
+          return setBackground({
+            requests,
+            requestId: request.id,
+            state: JOB_BACKGROUND_PROCESSING_IN_PROGRESS,
+            metadataReference: combineAll,
+            type
+          });
+        }
       }
       if (state === JOB_BACKGROUND_PROCESSING_IN_PROGRESS) {
         const result = await Promise.all(requestForAllFormats.map(async item => {
