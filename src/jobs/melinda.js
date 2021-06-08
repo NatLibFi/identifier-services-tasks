@@ -105,8 +105,8 @@ export default function (agenda) {
       const {publishers} = client;
       const {_id, ...publisher} = await publishers.read(`publishers/${req.publisher}`);
       const request = {...req, publisher: {...publisher, id: _id, email: publisher.emails[0].value}};
-      const allFormats = manageFormatDetails(request.formatDetails);
-      const requestForAllFormats = allFormats.map(item => ({...request, formatDetails: {format: Array.isArray(request.formatDetails) ? item : request.formatDetails.format, subFormat: item}}));
+      const allFormats = getAllFormats(request.formatDetails);
+      const requestForAllFormats = allFormats.map(item => ({...request, formatDetails: manageFormatDetails(request.formatDetails, item)}));
       if (state === JOB_BACKGROUND_PROCESSING_PENDING) { // eslint-disable-line functional/no-conditional-statement
         const result = await Promise.all(requestForAllFormats.map(async item => {
           if (item.publicationType === 'isbn-ismn' && item.identifier && item.identifier.length > 0) {
@@ -169,7 +169,7 @@ export default function (agenda) {
               };
             }
 
-            if (response.state === 'TRANSFORMATION_FAILED') {
+            if (response.state === 'TRANSFORMATION_FAILED' || response.state === 'ABORTED') {
               return {
                 format: formatName,
                 id: response.id,
@@ -178,7 +178,7 @@ export default function (agenda) {
               };
             }
 
-            if (response.state === 'PENDING_TRANSFORMATION' || response.state === 'ABORTED') {
+            if (response.state === 'PENDING_TRANSFORMATION' || response.state === 'TRANSFORMATION_IN_PROGRESS' || response.state === 'PROCESSING' || response.state === 'PROCESSING_BULK') {
               return {
                 format: formatName,
                 id: response.id,
@@ -212,7 +212,7 @@ export default function (agenda) {
     return logger.log('info', `Background processing State changed to ${state} for${updatedRequest.id}`);
   }
 
-  function manageFormatDetails(formatDetails) {
+  function getAllFormats(formatDetails) {
     if (Array.isArray(formatDetails)) {
       const allFormats = formatDetails.map(i => i.format);
       return allFormats;
@@ -237,6 +237,16 @@ export default function (agenda) {
         ? Object.values(otherFileFormat).forEach(v => allFormats.push(v)) // eslint-disable-line functional/immutable-data
         : otherPrintFormat && Object.values(otherPrintFormat).forEach(v => allFormats.push(v)); // eslint-disable-line functional/immutable-data
     return allFormats;
+  }
+
+  function manageFormatDetails(formatDetails, item) {
+    return {
+      ...formatDetails,
+      format: Array.isArray(formatDetails)
+        ? item
+        : formatDetails.format,
+      subFormat: item
+    };
   }
 
   function updateMetadataReference({item, state, status, blobId}) {
